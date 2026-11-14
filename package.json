@@ -1,0 +1,5 @@
+{
+  "name": "aira-monorepo",
+  "private": true,
+  "packageManager": "pnpm@9.1.0"
+}

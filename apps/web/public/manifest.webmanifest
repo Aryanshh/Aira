@@ -1,0 +1,21 @@
+{
+  "name": "AIRA Care",
+  "short_name": "AIRA",
+  "description": "Care that listens. Companionship that cares.",
+  "start_url": "/en/elder",
+  "display": "standalone",
+  "background_color": "#FFF8F1",
+  "theme_color": "#B5472F",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

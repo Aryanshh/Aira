@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #FFF8F1;
+  --surface: #FFFFFF;
+  --surface-soft: #FDEFE2;
+  --text: #2B2623;
+  --text-muted: #6B5F58;
+  --primary: #B5472F;
+  --primary-soft: #F9E1D9;
+  --secondary: #4F7C6B;
+  --secondary-soft: #E2EFE9;
+  --warning: #8A5A00;
+  --warning-bg: #FFF1D6;
+  --sos: #C62828;
+  --border: #EADBCF;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+*:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
