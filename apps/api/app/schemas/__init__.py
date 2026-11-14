@@ -10,6 +10,20 @@ from app.schemas.auth import (
     UpdateUserRequest,
 )
 
+from app.schemas.elder import (
+    ElderCreateRequest,
+    ElderUpdateRequest,
+    ElderResponse,
+    ElderCredentialsResponse,
+    CareTeamMemberResponse,
+    UpdateTeamMemberRequest,
+    InviteCreateRequest,
+    InviteResponse,
+    ElderSessionResponse,
+    ElderLoginRequest,
+    ElderQrLoginRequest,
+)
+
 __all__ = [
     "HealthResponse",
     "ReadinessResponse",
@@ -21,4 +35,15 @@ __all__ = [
     "ResetPasswordRequest",
     "UserResponse",
     "UpdateUserRequest",
+    "ElderCreateRequest",
+    "ElderUpdateRequest",
+    "ElderResponse",
+    "ElderCredentialsResponse",
+    "CareTeamMemberResponse",
+    "UpdateTeamMemberRequest",
+    "InviteCreateRequest",
+    "InviteResponse",
+    "ElderSessionResponse",
+    "ElderLoginRequest",
+    "ElderQrLoginRequest",
 ]

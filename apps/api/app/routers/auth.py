@@ -19,6 +19,9 @@ from app.schemas.auth import (
 )
 from app.services.auth_service import AuthService
 
+from app.schemas.elder import ElderLoginRequest, ElderQrLoginRequest
+from app.services.elder_service import ElderService
+
 router = APIRouter(prefix="/api/v1", tags=["Authentication"])
 
 
@@ -222,4 +225,56 @@ async def update_current_user_profile(
         quiet_start=current_user.quiet_start,
         quiet_end=current_user.quiet_end,
         is_verified=current_user.email_verified_at is not None,
+    )
+
+
+@router.post("/auth/elder/login", response_model=TokenResponse)
+async def elder_login(
+    payload: ElderLoginRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Elder sign-in with access code and 4-digit PIN (AUTH-4)."""
+    service = ElderService(db)
+    elder, token = await service.elder_login(payload.access_code, payload.pin, payload.device_label)
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="lax",
+        max_age=30 * 86400,
+        domain=settings.COOKIE_DOMAIN,
+        path="/",
+    )
+    return TokenResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=30 * 86400,
+    )
+
+
+@router.post("/auth/elder/qr", response_model=TokenResponse)
+async def elder_qr_login(
+    payload: ElderQrLoginRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Elder sign-in using personal QR login link (AUTH-4)."""
+    service = ElderService(db)
+    elder, token = await service.elder_qr_login(payload.token, payload.device_label)
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="lax",
+        max_age=30 * 86400,
+        domain=settings.COOKIE_DOMAIN,
+        path="/",
+    )
+    return TokenResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=30 * 86400,
     )

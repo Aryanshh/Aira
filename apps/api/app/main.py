@@ -10,6 +10,7 @@ from app.core.db import engine, Base
 from app.core.errors import register_error_handlers
 from app.core.logging import logger, setup_logging
 from app.routers.auth import router as auth_router
+from app.routers.elders import router as elders_router
 from app.routers.health import router as health_router
 
 
@@ -45,6 +46,7 @@ register_error_handlers(app)
 # Include Routers
 app.include_router(health_router)
 app.include_router(auth_router)
+app.include_router(elders_router)
 
 
 @app.get("/api/v1/stream")
