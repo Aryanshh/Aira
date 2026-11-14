@@ -12,6 +12,7 @@ from app.core.logging import logger, setup_logging
 from app.routers.auth import router as auth_router
 from app.routers.elders import router as elders_router
 from app.routers.health import router as health_router
+from app.routers.medicines import router as medicines_router
 
 
 @asynccontextmanager
@@ -47,6 +48,7 @@ register_error_handlers(app)
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(elders_router)
+app.include_router(medicines_router)
 
 
 @app.get("/api/v1/stream")

@@ -50,3 +50,61 @@ async def get_current_user(
         raise UnauthorizedError(detail="User no longer exists.", code="USER_NOT_FOUND")
 
     return user
+
+
+class CurrentActor:
+    def __init__(self, actor_type: str, user: Optional[User] = None, elder_id: Optional[uuid.UUID] = None):
+        self.actor_type = actor_type  # "user" or "elder"
+        self.user = user
+        self.elder_id = elder_id
+
+    @property
+    def is_user(self) -> bool:
+        return self.actor_type == "user"
+
+    @property
+    def is_elder(self) -> bool:
+        return self.actor_type == "elder"
+
+
+async def get_current_actor(
+    authorization: Optional[str] = Header(None),
+    access_token: Optional[str] = Cookie(None),
+    db: AsyncSession = Depends(get_db),
+) -> CurrentActor:
+    """Extract authenticated actor (user or elder) from token."""
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+    elif access_token:
+        token = access_token
+
+    if not token:
+        raise UnauthorizedError(detail="Authentication required.", code="NOT_AUTHENTICATED")
+
+    try:
+        payload = decode_access_token(token)
+    except ValueError as e:
+        raise UnauthorizedError(detail=str(e), code="INVALID_TOKEN")
+
+    role = payload.get("role")
+    sub_str = payload.get("sub")
+    if not sub_str:
+        raise UnauthorizedError(detail="Token subject missing.", code="INVALID_TOKEN_SUBJECT")
+
+    try:
+        sub_uuid = uuid.UUID(sub_str)
+    except ValueError:
+        raise UnauthorizedError(detail="Malformed subject ID.", code="MALFORMED_ID")
+
+    if role == "elder":
+        return CurrentActor(actor_type="elder", elder_id=sub_uuid)
+    elif role == "user":
+        stmt = select(User).where(User.id == sub_uuid, User.deleted_at.is_(None))
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+        if not user:
+            raise UnauthorizedError(detail="User no longer exists.", code="USER_NOT_FOUND")
+        return CurrentActor(actor_type="user", user=user)
+    else:
+        raise UnauthorizedError(detail="Unknown token role.", code="INVALID_TOKEN_ROLE")

@@ -24,6 +24,16 @@ from app.schemas.elder import (
     ElderQrLoginRequest,
 )
 
+from app.schemas.medicine import (
+    MedicineCreateRequest,
+    MedicineUpdateRequest,
+    PauseMedicineRequest,
+    MedicineResponse,
+    DoseInstanceResponse,
+    MarkDoseSkippedRequest,
+    DuplicateCheckResponse,
+)
+
 __all__ = [
     "HealthResponse",
     "ReadinessResponse",
