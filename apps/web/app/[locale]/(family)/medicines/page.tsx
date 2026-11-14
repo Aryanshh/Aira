@@ -288,11 +288,15 @@ export default function MedicinesListPage() {
 
                 {/* Stock Details */}
                 <div className="flex items-center gap-4 text-right sm:border-l sm:border-border sm:pl-5">
-                  <div className="text-left sm:text-right">
-                    <span className="text-xs text-text-secondary block font-medium">
+                  <Link
+                    href={`/${locale}/medicines/${med.id}/stock`}
+                    className="text-left sm:text-right group hover:opacity-80 transition-opacity"
+                    title={t("viewStockHistoryTooltip")}
+                  >
+                    <span className="text-xs text-text-secondary block font-medium group-hover:text-primary">
                       {t("stockRemaining")}
                     </span>
-                    <span className="text-sm font-bold text-text-primary">
+                    <span className="text-sm font-bold text-text-primary group-hover:text-primary">
                       {med.stock_quantity} {med.dose_unit}
                     </span>
                     {!med.as_needed && med.days_remaining !== null && (
@@ -300,7 +304,7 @@ export default function MedicinesListPage() {
                         (~{med.days_remaining} {t("days")})
                       </span>
                     )}
-                  </div>
+                  </Link>
 
                   {/* Actions for Authorized Users */}
                   {canManage && med.status !== "ended" && (

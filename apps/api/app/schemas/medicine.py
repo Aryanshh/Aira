@@ -120,3 +120,26 @@ class MarkDoseSkippedRequest(BaseModel):
 class DuplicateCheckResponse(BaseModel):
     is_duplicate: bool
     warning: Optional[str] = None
+
+
+class RefillRequest(BaseModel):
+    quantity: Decimal = Field(gt=Decimal("0.0"))
+    note: Optional[str] = Field(None, max_length=255)
+
+
+class StockAdjustRequest(BaseModel):
+    new_quantity: Optional[Decimal] = Field(None, ge=Decimal("0.0"))
+    delta: Optional[Decimal] = None
+    note: Optional[str] = Field(None, max_length=255)
+
+
+class StockEventResponse(BaseModel):
+    id: uuid.UUID
+    medicine_id: uuid.UUID
+    delta: Decimal
+    reason: str
+    note: Optional[str] = None
+    created_by: Optional[str] = None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

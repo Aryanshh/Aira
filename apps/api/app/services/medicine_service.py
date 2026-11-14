@@ -21,7 +21,10 @@ from app.schemas.medicine import (
     MedicineCreateRequest,
     MedicineResponse,
     MedicineUpdateRequest,
+    RefillRequest,
     ScheduleSchema,
+    StockAdjustRequest,
+    StockEventResponse,
 )
 
 
@@ -708,6 +711,119 @@ class MedicineService:
             can_undo=False,
         )
 
+    # --- Refill & Stock Ledger (STK-1 to STK-5) ---
+
+    async def record_refill(
+        self, elder_id: uuid.UUID, medicine_id: uuid.UUID, user: User, data: RefillRequest
+    ) -> MedicineResponse:
+        """Add refilled stock to a medicine and record ledger event (STK-2, STK-5)."""
+        await self._require_medicine_manager(elder_id, user)
+
+        med = (
+            await self.db.execute(
+                select(Medicine).where(Medicine.id == medicine_id, Medicine.elder_id == elder_id)
+            )
+        ).scalar_one_or_none()
+        if not med:
+            raise NotFoundError(detail="Medicine not found.")
+
+        med.stock_quantity += data.quantity
+        stock_event = StockEvent(
+            medicine_id=med.id,
+            delta=data.quantity,
+            reason="refill",
+            note=data.note.strip() if data.note else None,
+            created_by=user.full_name,
+        )
+        self.db.add(stock_event)
+
+        audit = AuditEvent(
+            elder_id=elder_id,
+            actor_type="user",
+            actor_id=user.id,
+            action="stock.refill",
+            entity="medicine",
+            entity_id=med.id,
+            meta={"quantity": float(data.quantity), "new_total": float(med.stock_quantity)},
+        )
+        self.db.add(audit)
+        await self.db.flush()
+
+        return await self.get_medicine(elder_id, medicine_id, user)
+
+    async def adjust_stock(
+        self, elder_id: uuid.UUID, medicine_id: uuid.UUID, user: User, data: StockAdjustRequest
+    ) -> MedicineResponse:
+        """Manual adjustment of medicine stock level (STK-2, STK-5)."""
+        await self._require_medicine_manager(elder_id, user)
+
+        med = (
+            await self.db.execute(
+                select(Medicine).where(Medicine.id == medicine_id, Medicine.elder_id == elder_id)
+            )
+        ).scalar_one_or_none()
+        if not med:
+            raise NotFoundError(detail="Medicine not found.")
+
+        if data.new_quantity is not None:
+            delta = data.new_quantity - med.stock_quantity
+            med.stock_quantity = data.new_quantity
+        elif data.delta is not None:
+            delta = data.delta
+            med.stock_quantity = max(Decimal("0.0"), med.stock_quantity + data.delta)
+        else:
+            raise ConflictError(detail="Must provide either new_quantity or delta.")
+
+        stock_event = StockEvent(
+            medicine_id=med.id,
+            delta=delta,
+            reason="manual_adjust",
+            note=data.note.strip() if data.note else None,
+            created_by=user.full_name,
+        )
+        self.db.add(stock_event)
+
+        audit = AuditEvent(
+            elder_id=elder_id,
+            actor_type="user",
+            actor_id=user.id,
+            action="stock.manual_adjust",
+            entity="medicine",
+            entity_id=med.id,
+            meta={"delta": float(delta), "new_total": float(med.stock_quantity)},
+        )
+        self.db.add(audit)
+        await self.db.flush()
+
+        return await self.get_medicine(elder_id, medicine_id, user)
+
+    async def list_stock_events(
+        self, elder_id: uuid.UUID, medicine_id: uuid.UUID, user: User
+    ) -> List[StockEventResponse]:
+        """Fetch stock event ledger history for a medicine (STK-2, STK-5)."""
+        await self._require_care_access(elder_id, user)
+
+        stmt = (
+            select(StockEvent)
+            .where(StockEvent.medicine_id == medicine_id)
+            .order_by(StockEvent.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        events = result.scalars().all()
+
+        return [
+            StockEventResponse(
+                id=ev.id,
+                medicine_id=ev.medicine_id,
+                delta=ev.delta,
+                reason=ev.reason,
+                note=ev.note,
+                created_by=ev.created_by,
+                created_at=ev.created_at,
+            )
+            for ev in events
+        ]
+
     async def mark_dose_skipped(
         self, dose_id: uuid.UUID, actor: CurrentActor, reason: Optional[str]
     ) -> DoseInstanceResponse:
@@ -747,3 +863,116 @@ class MedicineService:
             status=dose.status,
             can_undo=False,
         )
+
+    # --- Refill & Stock Ledger (STK-1 to STK-5) ---
+
+    async def record_refill(
+        self, elder_id: uuid.UUID, medicine_id: uuid.UUID, user: User, data: RefillRequest
+    ) -> MedicineResponse:
+        """Add refilled stock to a medicine and record ledger event (STK-2, STK-5)."""
+        await self._require_medicine_manager(elder_id, user)
+
+        med = (
+            await self.db.execute(
+                select(Medicine).where(Medicine.id == medicine_id, Medicine.elder_id == elder_id)
+            )
+        ).scalar_one_or_none()
+        if not med:
+            raise NotFoundError(detail="Medicine not found.")
+
+        med.stock_quantity += data.quantity
+        stock_event = StockEvent(
+            medicine_id=med.id,
+            delta=data.quantity,
+            reason="refill",
+            note=data.note.strip() if data.note else None,
+            created_by=user.full_name,
+        )
+        self.db.add(stock_event)
+
+        audit = AuditEvent(
+            elder_id=elder_id,
+            actor_type="user",
+            actor_id=user.id,
+            action="stock.refill",
+            entity="medicine",
+            entity_id=med.id,
+            meta={"quantity": float(data.quantity), "new_total": float(med.stock_quantity)},
+        )
+        self.db.add(audit)
+        await self.db.flush()
+
+        return await self.get_medicine(elder_id, medicine_id, user)
+
+    async def adjust_stock(
+        self, elder_id: uuid.UUID, medicine_id: uuid.UUID, user: User, data: StockAdjustRequest
+    ) -> MedicineResponse:
+        """Manual adjustment of medicine stock level (STK-2, STK-5)."""
+        await self._require_medicine_manager(elder_id, user)
+
+        med = (
+            await self.db.execute(
+                select(Medicine).where(Medicine.id == medicine_id, Medicine.elder_id == elder_id)
+            )
+        ).scalar_one_or_none()
+        if not med:
+            raise NotFoundError(detail="Medicine not found.")
+
+        if data.new_quantity is not None:
+            delta = data.new_quantity - med.stock_quantity
+            med.stock_quantity = data.new_quantity
+        elif data.delta is not None:
+            delta = data.delta
+            med.stock_quantity = max(Decimal("0.0"), med.stock_quantity + data.delta)
+        else:
+            raise ConflictError(detail="Must provide either new_quantity or delta.")
+
+        stock_event = StockEvent(
+            medicine_id=med.id,
+            delta=delta,
+            reason="manual_adjust",
+            note=data.note.strip() if data.note else None,
+            created_by=user.full_name,
+        )
+        self.db.add(stock_event)
+
+        audit = AuditEvent(
+            elder_id=elder_id,
+            actor_type="user",
+            actor_id=user.id,
+            action="stock.manual_adjust",
+            entity="medicine",
+            entity_id=med.id,
+            meta={"delta": float(delta), "new_total": float(med.stock_quantity)},
+        )
+        self.db.add(audit)
+        await self.db.flush()
+
+        return await self.get_medicine(elder_id, medicine_id, user)
+
+    async def list_stock_events(
+        self, elder_id: uuid.UUID, medicine_id: uuid.UUID, user: User
+    ) -> List[StockEventResponse]:
+        """Fetch stock event ledger history for a medicine (STK-2, STK-5)."""
+        await self._require_care_access(elder_id, user)
+
+        stmt = (
+            select(StockEvent)
+            .where(StockEvent.medicine_id == medicine_id)
+            .order_by(StockEvent.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        events = result.scalars().all()
+
+        return [
+            StockEventResponse(
+                id=ev.id,
+                medicine_id=ev.medicine_id,
+                delta=ev.delta,
+                reason=ev.reason,
+                note=ev.note,
+                created_by=ev.created_by,
+                created_at=ev.created_at,
+            )
+            for ev in events
+        ]

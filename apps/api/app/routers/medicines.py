@@ -15,6 +15,9 @@ from app.schemas.medicine import (
     MedicineResponse,
     MedicineUpdateRequest,
     PauseMedicineRequest,
+    RefillRequest,
+    StockAdjustRequest,
+    StockEventResponse,
 )
 from app.services.medicine_service import MedicineService
 
@@ -178,3 +181,47 @@ async def mark_dose_skipped(
     service = MedicineService(db)
     reason = payload.reason if payload else None
     return await service.mark_dose_skipped(dose_id, actor, reason)
+
+
+# --- Refill & Stock Ledger Endpoints (STK-1 to STK-5) ---
+
+
+@router.post("/elders/{elder_id}/medicines/{medicine_id}/refill", response_model=MedicineResponse)
+async def record_medicine_refill(
+    elder_id: uuid.UUID,
+    medicine_id: uuid.UUID,
+    payload: RefillRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MedicineResponse:
+    """Record a medicine refill event (STK-2, STK-5). Increases stock ledger."""
+    service = MedicineService(db)
+    return await service.record_refill(elder_id, medicine_id, current_user, payload)
+
+
+@router.post("/elders/{elder_id}/medicines/{medicine_id}/stock-adjust", response_model=MedicineResponse)
+async def adjust_medicine_stock(
+    elder_id: uuid.UUID,
+    medicine_id: uuid.UUID,
+    payload: StockAdjustRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MedicineResponse:
+    """Manually adjust medicine stock quantity (STK-2, STK-5)."""
+    service = MedicineService(db)
+    return await service.adjust_stock(elder_id, medicine_id, current_user, payload)
+
+
+@router.get(
+    "/elders/{elder_id}/medicines/{medicine_id}/stock-events",
+    response_model=List[StockEventResponse],
+)
+async def list_stock_events(
+    elder_id: uuid.UUID,
+    medicine_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> List[StockEventResponse]:
+    """Fetch stock ledger history for a medicine (STK-2, STK-5)."""
+    service = MedicineService(db)
+    return await service.list_stock_events(elder_id, medicine_id, current_user)

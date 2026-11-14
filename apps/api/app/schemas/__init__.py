@@ -32,6 +32,9 @@ from app.schemas.medicine import (
     DoseInstanceResponse,
     MarkDoseSkippedRequest,
     DuplicateCheckResponse,
+    RefillRequest,
+    StockAdjustRequest,
+    StockEventResponse,
 )
 
 __all__ = [
