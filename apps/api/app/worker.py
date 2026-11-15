@@ -1,7 +1,10 @@
 import asyncio
 import signal
 from app.config import settings
+from app.core.db import async_session_factory
 from app.core.logging import logger, setup_logging
+from app.services.notification_service import NotificationService
+from app.services.status_service import StatusService
 
 
 class Worker:
@@ -14,9 +17,14 @@ class Worker:
 
     async def outbox_dispatcher_loop(self):
         """Poll and dispatch queued notifications from outbox table."""
+        logger.info("outbox_dispatcher_loop_started")
         while self._running:
             try:
-                # Dispatcher logic will be filled in Milestone 6
+                async with async_session_factory() as session:
+                    service = NotificationService(session)
+                    dispatched = await service.process_outbox_batch(batch_size=50)
+                    if dispatched > 0:
+                        logger.info("outbox_batch_dispatched", count=dispatched)
                 await asyncio.sleep(5)
             except asyncio.CancelledError:
                 break
@@ -25,10 +33,15 @@ class Worker:
                 await asyncio.sleep(5)
 
     async def day_close_sweeper_loop(self):
-        """End-of-day dose closure sweeper running every 5 minutes."""
+        """End-of-day dose closure sweeper running every 60 seconds."""
+        logger.info("day_close_sweeper_loop_started")
         while self._running:
             try:
-                # Sweeper logic will be filled in Milestone 4
+                async with async_session_factory() as session:
+                    service = StatusService(session)
+                    closed = await service.run_worker_day_closure_cycle()
+                    if closed > 0:
+                        logger.info("day_close_sweeper_closed_doses", count=closed)
                 await asyncio.sleep(60)
             except asyncio.CancelledError:
                 break
