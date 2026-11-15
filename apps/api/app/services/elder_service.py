@@ -148,6 +148,15 @@ class ElderService:
             )
         return responses
 
+    async def get_elder_by_id(self, elder_id: uuid.UUID) -> Elder:
+        """Fetch active elder model directly by id (for elder self-service)."""
+        stmt = select(Elder).where(Elder.id == elder_id, Elder.archived_at.is_(None))
+        result = await self.db.execute(stmt)
+        elder = result.scalar_one_or_none()
+        if not elder:
+            raise NotFoundError(detail="Elder profile not found or has been archived.")
+        return elder
+
     async def get_elder(self, elder_id: uuid.UUID, user: User) -> ElderResponse:
         """Get elder details."""
         link = await self.require_care_link(elder_id, user.id)

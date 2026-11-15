@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
+from app.core.errors import ForbiddenError
 from app.models.user import User
 from app.routers.deps import CurrentActor, get_current_actor, get_current_user
 from app.schemas.medicine import (
@@ -133,6 +134,20 @@ async def end_medicine(
 
 
 # --- Doses Endpoints ---
+
+
+@router.get("/elders/me/doses", response_model=List[DoseInstanceResponse])
+async def list_current_elder_doses(
+    target_date: Optional[date] = Query(None, alias="date"),
+    actor: CurrentActor = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> List[DoseInstanceResponse]:
+    """Fetch dose instances for the currently signed-in elder (ELD-V2)."""
+    if not actor.is_elder or not actor.elder_id:
+        raise ForbiddenError(detail="Only authenticated elders can access this endpoint.")
+    service = MedicineService(db)
+    resolved_date = target_date or date.today()
+    return await service.get_doses_for_date(actor.elder_id, resolved_date, actor)
 
 
 @router.get("/elders/{elder_id}/doses", response_model=List[DoseInstanceResponse])

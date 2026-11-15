@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
+from app.core.errors import ForbiddenError
 from app.models.user import User
 from app.routers.deps import CurrentActor, get_current_actor, get_current_user
 from app.schemas.sos import (
@@ -21,6 +22,18 @@ router = APIRouter(prefix="/api/v1", tags=["SOS & Contacts"])
 
 
 # --- Contacts Endpoints (CON-1 to CON-6) ---
+
+
+@router.get("/elders/me/contacts", response_model=List[ContactResponse])
+async def list_current_elder_contacts(
+    actor: CurrentActor = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> List[ContactResponse]:
+    """List emergency and family contacts for the currently signed-in elder (ELD-V3)."""
+    if not actor.is_elder or not actor.elder_id:
+        raise ForbiddenError(detail="Only authenticated elders can access this endpoint.")
+    service = SosService(db)
+    return await service.list_contacts(actor.elder_id, actor)
 
 
 @router.get("/elders/{elder_id}/contacts", response_model=List[ContactResponse])
@@ -89,6 +102,30 @@ async def reorder_emergency_contacts(
 
 
 # --- SOS Endpoints (SOS-1 to SOS-6) ---
+
+
+@router.post("/elders/me/sos", response_model=SosEventResponse, status_code=status.HTTP_201_CREATED)
+async def trigger_current_elder_sos(
+    actor: CurrentActor = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> SosEventResponse:
+    """Trigger emergency SOS alert from the elder's device (ELD-V4, SOS-1)."""
+    if not actor.is_elder or not actor.elder_id:
+        raise ForbiddenError(detail="Only authenticated elders can access this endpoint.")
+    service = SosService(db)
+    event = await service.trigger_sos(actor.elder_id, actor, source="web")
+    res = await service.get_active_sos(actor.elder_id)
+    return res or SosEventResponse(
+        id=event.id,
+        elder_id=event.elder_id,
+        source=event.source,
+        client_event_id=event.client_event_id,
+        status=event.status,
+        escalation_state=event.escalation_state,
+        press_count=event.press_count,
+        triggered_at=event.triggered_at,
+        attempts=[],
+    )
 
 
 @router.post("/sos/trigger", response_model=SosEventResponse, status_code=status.HTTP_201_CREATED)

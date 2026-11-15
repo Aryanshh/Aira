@@ -392,7 +392,7 @@ class SosService:
             action="sos.triggered",
             entity="sos_event",
             entity_id=sos_event.id,
-            meta={"source": source.value, "press_count": 1},
+            meta={"source": source.value if hasattr(source, "value") else str(source), "press_count": 1},
         )
         self.db.add(audit)
         await self.db.flush()

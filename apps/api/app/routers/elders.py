@@ -3,13 +3,15 @@ from typing import List
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.errors import ForbiddenError
 from app.core.db import get_db
 from app.models.user import User
-from app.routers.deps import get_current_user
+from app.routers.deps import CurrentActor, get_current_actor, get_current_user
 from app.schemas.elder import (
     CareTeamMemberResponse,
     ElderCreateRequest,
     ElderCredentialsResponse,
+    ElderPreferencesUpdateRequest,
     ElderResponse,
     ElderSessionResponse,
     ElderUpdateRequest,
@@ -20,6 +22,67 @@ from app.schemas.elder import (
 from app.services.elder_service import ElderService
 
 router = APIRouter(prefix="/api/v1", tags=["Elders & Care Team"])
+
+
+@router.get("/elders/me/profile", response_model=ElderResponse)
+async def get_current_elder_profile(
+    actor: CurrentActor = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> ElderResponse:
+    """Fetch profile for the currently signed-in elder (ELD-V1)."""
+    if not actor.is_elder or not actor.elder_id:
+        raise ForbiddenError(detail="Only authenticated elders can access this endpoint.")
+    service = ElderService(db)
+    elder = await service.get_elder_by_id(actor.elder_id)
+    return ElderResponse(
+        id=elder.id,
+        full_name=elder.full_name,
+        preferred_name=elder.preferred_name,
+        date_of_birth=elder.date_of_birth,
+        language=elder.language,
+        timezone=elder.timezone,
+        day_close_time=elder.day_close_time,
+        text_size=elder.text_size,
+        is_owner=False,
+        can_manage_medicines=False,
+        role=None,
+        archived_at=elder.archived_at,
+        created_at=elder.created_at,
+    )
+
+
+@router.patch("/elders/me/preferences", response_model=ElderResponse)
+async def update_current_elder_preferences(
+    payload: ElderPreferencesUpdateRequest,
+    actor: CurrentActor = Depends(get_current_actor),
+    db: AsyncSession = Depends(get_db),
+) -> ElderResponse:
+    """Update language and text size preferences for the signed-in elder (Section 2.2)."""
+    if not actor.is_elder or not actor.elder_id:
+        raise ForbiddenError(detail="Only authenticated elders can access this endpoint.")
+    service = ElderService(db)
+    elder = await service.get_elder_by_id(actor.elder_id)
+    if payload.language is not None:
+        elder.language = payload.language
+    if payload.text_size is not None:
+        elder.text_size = payload.text_size
+    await db.flush()
+    return ElderResponse(
+        id=elder.id,
+        full_name=elder.full_name,
+        preferred_name=elder.preferred_name,
+        date_of_birth=elder.date_of_birth,
+        language=elder.language,
+        timezone=elder.timezone,
+        day_close_time=elder.day_close_time,
+        text_size=elder.text_size,
+        is_owner=False,
+        can_manage_medicines=False,
+        role=None,
+        archived_at=elder.archived_at,
+        created_at=elder.created_at,
+    )
+
 
 
 @router.get("/elders", response_model=List[ElderResponse])

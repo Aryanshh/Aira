@@ -41,6 +41,12 @@ class ElderUpdateRequest(BaseModel):
         return v
 
 
+class ElderPreferencesUpdateRequest(BaseModel):
+    language: Optional[str] = Field(None, pattern="^(en|hi)$")
+    text_size: Optional[int] = Field(None, ge=0, le=2)
+
+
+
 class ElderResponse(BaseModel):
     id: uuid.UUID
     full_name: str
