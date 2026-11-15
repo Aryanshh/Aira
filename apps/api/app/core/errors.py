@@ -75,6 +75,16 @@ class ConflictError(AppError):
         )
 
 
+class ValidationError(AppError):
+    def __init__(self, detail: str = "Validation error", code: str = "VALIDATION_ERROR"):
+        super().__init__(
+            code=code,
+            title="Validation Error",
+            detail=detail,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:

@@ -15,6 +15,7 @@ from app.routers.health import router as health_router
 from app.routers.medicines import router as medicines_router
 from app.routers.status import router as status_router
 from app.routers.sos import router as sos_router
+from app.routers.notifications import router as notifications_router
 
 
 @asynccontextmanager
@@ -53,6 +54,7 @@ app.include_router(elders_router)
 app.include_router(medicines_router)
 app.include_router(status_router)
 app.include_router(sos_router)
+app.include_router(notifications_router)
 
 
 @app.get("/api/v1/stream")

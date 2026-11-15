@@ -4,11 +4,12 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Activity, AlertTriangle, Calendar, Heart, LogOut, Pill, Users } from "lucide-react";
+import { Activity, AlertTriangle, Calendar, Heart, LogOut, Pill, Settings, Users } from "lucide-react";
 
 import { ElderProvider } from "@/components/elder-context";
 import { ElderSwitcher } from "@/components/elder-switcher";
 import { LanguageToggle } from "@/components/language-toggle";
+import { NotificationInbox } from "@/components/notification-inbox";
 import { SosLiveBanner } from "@/components/sos-live-banner";
 
 export default function FamilyLayout({ children }: { children: React.ReactNode }) {
@@ -22,6 +23,7 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
     { href: `/${locale}/medicines`, label: t("medicines"), icon: Pill },
     { href: `/${locale}/sos`, label: t("sos"), icon: AlertTriangle },
     { href: `/${locale}/team`, label: t("team"), icon: Users },
+    { href: `/${locale}/settings/notifications`, label: t("settings"), icon: Settings },
   ];
 
   const handleSignOut = async () => {
@@ -56,6 +58,7 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
 
             {/* Right: Actions & Nav */}
             <div className="flex items-center gap-2 sm:gap-3">
+              <NotificationInbox />
               <LanguageToggle />
               <button
                 type="button"
