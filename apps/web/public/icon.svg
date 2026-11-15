@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C85238"/>
+      <stop offset="100%" stop-color="#9C3620"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#551B0F" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <!-- Background Rounded Shield/Squircle -->
+  <rect width="512" height="512" rx="128" fill="url(#grad)"/>
+  
+  <!-- Subtle warm glow -->
+  <circle cx="256" cy="180" r="160" fill="#FFF" opacity="0.08"/>
+
+  <!-- Stylized Heart & Care Hands -->
+  <g filter="url(#shadow)" fill="#FFFFFF">
+    <path d="M256 410c-8 0-16-4-22-10-92-94-142-152-142-220 0-56 44-100 100-100 34 0 66 18 84 46 18-28 50-46 84-46 56 0 100 44 100 100 0 68-50 126-142 220-6 6-14 10-22 10z"/>
+  </g>
+  
+  <!-- Embedded Cross / Plus in warm terracotta inside heart -->
+  <path d="M256 180v80M216 220h80" stroke="#B5472F" stroke-width="20" stroke-linecap="round"/>
+</svg>

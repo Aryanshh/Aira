@@ -24,6 +24,14 @@ export const metadata: Metadata = {
   title: "AIRA Care - Care that listens. Companionship that cares.",
   description: "Family, caregiver, and elder companion web app for AIRA.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/icons/icon-192.png",
+  },
+  themeColor: "#B5472F",
 };
 
 export default async function LocaleLayout({

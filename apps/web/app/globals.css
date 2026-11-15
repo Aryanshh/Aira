@@ -6,16 +6,28 @@
   --bg: #FFF8F1;
   --surface: #FFFFFF;
   --surface-soft: #FDEFE2;
+  --surface-muted: #F8F3ED;
   --text: #2B2623;
-  --text-muted: #6B5F58;
+  --text-primary: #2B2623;
+  --text-secondary: #6B5F58;
+  --text-muted: #8C7E77;
   --primary: #B5472F;
   --primary-soft: #F9E1D9;
+  --primary-hover: #983823;
   --secondary: #4F7C6B;
   --secondary-soft: #E2EFE9;
   --warning: #8A5A00;
   --warning-bg: #FFF1D6;
+  --accent-amber: #B45309;
+  --accent-amber-soft: #FEF3C7;
+  --accent-emerald: #15803D;
+  --accent-emerald-soft: #DCFCE7;
+  --accent-blue: #1D4ED8;
+  --accent-blue-soft: #DBEAFE;
   --sos: #C62828;
+  --sos-soft: #FEE2E2;
   --border: #EADBCF;
+  --border-focus: #B5472F;
 }
 
 body {
@@ -24,6 +36,24 @@ body {
   min-height: 100vh;
   margin: 0;
   padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar for clean dashboard tables & sheets */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #D8C7B9;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #BFAEA0;
 }
 
 *:focus-visible {
