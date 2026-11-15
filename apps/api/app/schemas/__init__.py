@@ -44,6 +44,16 @@ from app.schemas.status import (
     DayClosureResponse,
 )
 
+from app.schemas.sos import (
+    ContactCreateRequest,
+    ContactUpdateRequest,
+    ContactResponse,
+    ContactsReorderRequest,
+    SosTriggerRequest,
+    SosResolveRequest,
+    SosEventResponse,
+)
+
 __all__ = [
     "HealthResponse",
     "ReadinessResponse",

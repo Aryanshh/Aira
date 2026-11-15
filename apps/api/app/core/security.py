@@ -1,3 +1,5 @@
+import os
+import sys
 import hashlib
 import random
 import secrets
@@ -12,47 +14,55 @@ from app.config import settings
 from app.core.time import utc_now
 
 
-# Configure test-optimized or production Argon2 parameters
-if settings.APP_ENV == "test":
-    ph = PasswordHasher(
-        time_cost=1,
-        memory_cost=1024,
-        parallelism=1,
-        hash_len=16,
-        salt_len=8,
-    )
-else:
-    ph = PasswordHasher(
-        time_cost=3,
-        memory_cost=65536,
-        parallelism=4,
-        hash_len=32,
-        salt_len=16,
-    )
+_test_hasher = PasswordHasher(
+    time_cost=1,
+    memory_cost=1024,
+    parallelism=1,
+    hash_len=16,
+    salt_len=8,
+)
+
+_prod_hasher = PasswordHasher(
+    time_cost=3,
+    memory_cost=65536,
+    parallelism=4,
+    hash_len=32,
+    salt_len=16,
+)
+
+
+def _get_ph() -> PasswordHasher:
+    if (
+        settings.APP_ENV == "test"
+        or "pytest" in sys.modules
+        or os.environ.get("APP_ENV") == "test"
+    ):
+        return _test_hasher
+    return _prod_hasher
 
 
 def hash_password(password: str) -> str:
     """Hash a password using Argon2id."""
-    return ph.hash(password)
+    return _get_ph().hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify an Argon2id password hash."""
     try:
-        return ph.verify(hashed_password, plain_password)
+        return _get_ph().verify(hashed_password, plain_password)
     except (VerificationError, VerifyMismatchError):
         return False
 
 
 def hash_pin(pin: str) -> str:
     """Hash an elder 4-digit PIN using Argon2id."""
-    return ph.hash(pin)
+    return _get_ph().hash(pin)
 
 
 def verify_pin(plain_pin: str, hashed_pin: str) -> bool:
     """Verify an elder 4-digit PIN."""
     try:
-        return ph.verify(hashed_pin, plain_pin)
+        return _get_ph().verify(hashed_pin, plain_pin)
     except (VerificationError, VerifyMismatchError):
         return False
 

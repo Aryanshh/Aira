@@ -9,6 +9,7 @@ import { Activity, AlertTriangle, Calendar, Heart, LogOut, Pill, Users } from "l
 import { ElderProvider } from "@/components/elder-context";
 import { ElderSwitcher } from "@/components/elder-switcher";
 import { LanguageToggle } from "@/components/language-toggle";
+import { SosLiveBanner } from "@/components/sos-live-banner";
 
 export default function FamilyLayout({ children }: { children: React.ReactNode }) {
   const t = useTranslations("nav");
@@ -90,6 +91,9 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
             })}
           </nav>
         </header>
+
+        {/* Live SOS Alert Banner (SOS-3) */}
+        <SosLiveBanner />
 
         {/* Main Content Area */}
         <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 md:p-8 pb-20 sm:pb-8">
