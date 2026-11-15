@@ -47,6 +47,9 @@ yarn-error.log*
 # Database & Docker
 postgres_data/
 docker-compose.override.yml
+*.db
+*.db-journal
+*.sqlite3
 
 # IDE & OS
 .vscode/

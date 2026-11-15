@@ -6,9 +6,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
 from app.config import settings
-from app.core.db import engine, Base
+from app.core.db import engine
 from app.core.errors import register_error_handlers
 from app.core.logging import logger, setup_logging
+import app.models  # Ensure all model tables are registered in Base.metadata
+from app.models import Base
 from app.routers.auth import router as auth_router
 from app.routers.elders import router as elders_router
 from app.routers.health import router as health_router
@@ -22,6 +24,8 @@ from app.routers.notifications import router as notifications_router
 async def lifespan(app: FastAPI):
     setup_logging()
     logger.info("aira_api_starting", env=settings.APP_ENV)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     yield
     logger.info("aira_api_shutting_down")
     if settings.APP_ENV != "test":
