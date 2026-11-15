@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { useElder } from "@/components/elder-context";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 interface DaySummary {
@@ -147,8 +148,24 @@ export default function StatusDashboardPage() {
 
   if (!selectedElder) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-bold text-text-primary">{t("noElderSelected")}</h2>
+      <div className="max-w-xl mx-auto py-12 px-4 text-center">
+        <div className="w-16 h-16 rounded-full bg-primary-soft text-primary mx-auto flex items-center justify-center mb-4">
+          <Heart className="w-8 h-8 fill-current" />
+        </div>
+        <h2 className="text-2xl font-bold text-text-primary mb-2">
+          {locale === "hi" ? "AIRA Care में आपका स्वागत है" : "Welcome to AIRA Care"}
+        </h2>
+        <p className="text-text-secondary text-sm mb-6 max-w-md mx-auto">
+          {locale === "hi"
+            ? "शुरू करने के लिए, अपने प्रियजन या बुजुर्ग का प्रोफाइल बनाएं।"
+            : "To get started, set up a profile for your loved one or older adult."}
+        </p>
+        <Link href={`/${locale}/elders/new`}>
+          <Button size="lg" className="inline-flex items-center gap-2 font-bold">
+            <span>+</span>
+            <span>{locale === "hi" ? "पहला बुजुर्ग प्रोफाइल जोड़ें" : "Add First Elder Profile"}</span>
+          </Button>
+        </Link>
       </div>
     );
   }

@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Heart, QrCode, Shield, Users } from "lucide-react";
+import { Heart, QrCode, Shield, Sparkles, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,8 +16,15 @@ export default function LoginPage() {
   const tCommon = useTranslations("common");
   const locale = useLocale();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [activeTab, setActiveTab] = React.useState<"team" | "elder">("team");
+
+  React.useEffect(() => {
+    if (searchParams?.get("tab") === "elder") {
+      setActiveTab("elder");
+    }
+  }, [searchParams]);
 
   // Family / Caregiver state
   const [email, setEmail] = React.useState("");
@@ -40,7 +47,7 @@ export default function LoginPage() {
       const res = await fetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
 
       if (!res.ok) {
@@ -48,13 +55,14 @@ export default function LoginPage() {
         if (errorData.code === "EMAIL_NOT_VERIFIED") {
           setTeamError(t("emailNotVerified"));
         } else {
-          setTeamError(t("loginFailed"));
+          setTeamError(errorData.detail || t("loginFailed"));
         }
         setTeamLoading(false);
         return;
       }
 
-      router.push(`/${locale}/home`);
+      // Hard redirect to load fresh server session and cookies
+      window.location.href = `/${locale}/status`;
     } catch {
       setTeamError(t("loginFailed"));
       setTeamLoading(false);
@@ -70,7 +78,7 @@ export default function LoginPage() {
       const res = await fetch("/api/v1/auth/elder/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ access_code: accessCode.trim().toUpperCase(), pin }),
+        body: JSON.stringify({ access_code: accessCode.trim().toUpperCase(), pin: pin.trim() }),
       });
 
       if (!res.ok) {
@@ -78,17 +86,30 @@ export default function LoginPage() {
         if (errorData.code === "ELDER_LOCKED") {
           setElderError(t("elderLocked"));
         } else {
-          setElderError(t("loginFailed"));
+          setElderError(errorData.detail || t("loginFailed"));
         }
         setElderLoading(false);
         return;
       }
 
-      router.push(`/${locale}/elder`);
+      // Hard redirect to elder dashboard
+      window.location.href = `/${locale}/elder`;
     } catch {
       setElderError(t("loginFailed"));
       setElderLoading(false);
     }
+  };
+
+  const fillDemoCaregiver = () => {
+    setEmail("caregiver@aira.example.com");
+    setPassword("Password123!");
+    setTeamError("");
+  };
+
+  const fillDemoElder = () => {
+    setAccessCode("AIRA-7K3Q");
+    setPin("1234");
+    setElderError("");
   };
 
   return (
@@ -108,7 +129,7 @@ export default function LoginPage() {
       </header>
 
       {/* Main Login Card */}
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md shadow-md">
         <h2 className="text-2xl font-bold text-center mb-6">{t("loginTitle")}</h2>
 
         {/* Segmented Control for Sign-in Paths */}
@@ -172,16 +193,24 @@ export default function LoginPage() {
               placeholder="••••••••••"
             />
 
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center text-xs">
+              <button
+                type="button"
+                onClick={fillDemoCaregiver}
+                className="inline-flex items-center gap-1 text-primary hover:underline font-semibold"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{locale === "hi" ? "डेमो खाता भरें" : "Quick Fill Demo Account"}</span>
+              </button>
               <Link
                 href={`/${locale}/forgot-password`}
-                className="text-sm font-semibold text-primary hover:underline"
+                className="font-semibold text-text-muted hover:underline"
               >
                 {t("forgotPassword")}
               </Link>
             </div>
 
-            <Button type="submit" className="w-full" disabled={teamLoading}>
+            <Button type="submit" className="w-full font-bold" disabled={teamLoading}>
               {teamLoading ? tCommon("loading") : t("signInButton")}
             </Button>
 
@@ -223,7 +252,18 @@ export default function LoginPage() {
               className="text-center text-2xl tracking-[0.5em] font-bold"
             />
 
-            <Button type="submit" size="elder" className="w-full mt-2" disabled={elderLoading}>
+            <div className="flex justify-center text-xs">
+              <button
+                type="button"
+                onClick={fillDemoElder}
+                className="inline-flex items-center gap-1 text-primary hover:underline font-semibold"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{locale === "hi" ? "डेमो बुजुर्ग भरें (AIRA-7K3Q / 1234)" : "Quick Fill Demo Elder (AIRA-7K3Q / 1234)"}</span>
+              </button>
+            </div>
+
+            <Button type="submit" size="elder" className="w-full mt-2 font-bold" disabled={elderLoading}>
               {elderLoading ? tCommon("loading") : t("signInButton")}
             </Button>
 

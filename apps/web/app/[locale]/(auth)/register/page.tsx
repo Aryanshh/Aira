@@ -36,12 +36,13 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
+      const normalizedEmail = email.trim().toLowerCase();
       const res = await fetch("/api/v1/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          full_name: fullName,
-          email,
+          full_name: fullName.trim(),
+          email: normalizedEmail,
           password,
           preferred_language: locale,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata",
@@ -55,10 +56,25 @@ export default function RegisterPage() {
         return;
       }
 
+      // Auto sign-in immediately so session is created
+      try {
+        const loginRes = await fetch("/api/v1/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: normalizedEmail, password }),
+        });
+        if (loginRes.ok) {
+          window.location.href = `/${locale}/elders/new`;
+          return;
+        }
+      } catch {
+        // Fallback
+      }
+
       setSuccess(true);
       setTimeout(() => {
-        router.push(`/${locale}/login`);
-      }, 2000);
+        window.location.href = `/${locale}/login`;
+      }, 1500);
     } catch {
       setError("An unexpected network error occurred.");
       setLoading(false);
@@ -82,12 +98,12 @@ export default function RegisterPage() {
       </header>
 
       {/* Main Register Card */}
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md shadow-md">
         <h2 className="text-2xl font-bold text-center mb-6">{t("registerTitle")}</h2>
 
         {success ? (
           <div className="p-4 bg-secondary-soft text-secondary rounded-card text-center font-bold">
-            Account created! Redirecting to sign in...
+            Account created! Redirecting...
           </div>
         ) : (
           <form onSubmit={handleRegister} className="space-y-4">
@@ -103,7 +119,7 @@ export default function RegisterPage() {
               required
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. Priya Sharma"
+              placeholder="e.g. Anjali Sharma"
             />
 
             <Input
@@ -120,18 +136,19 @@ export default function RegisterPage() {
               label={t("passwordLabel")}
               type="password"
               required
+              minLength={10}
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={t("passwordPlaceholder")}
+              placeholder="Min. 10 characters"
             />
 
-            <Button type="submit" className="w-full mt-2" disabled={loading}>
+            <Button type="submit" className="w-full font-bold mt-2" disabled={loading}>
               {loading ? tCommon("loading") : t("registerButton")}
             </Button>
 
             <div className="pt-4 text-center text-sm text-text-muted">
-              {t("hasAccount")}{" "}
+              {t("alreadyHaveAccount")}{" "}
               <Link href={`/${locale}/login`} className="font-bold text-primary hover:underline">
                 {t("signInButton")}
               </Link>
@@ -140,6 +157,7 @@ export default function RegisterPage() {
         )}
       </Card>
 
+      {/* Medical Disclaimer Note (MED-9) */}
       <footer className="w-full max-w-md mt-6 text-center text-xs text-text-muted">
         <p>{tCommon("disclaimer")}</p>
       </footer>

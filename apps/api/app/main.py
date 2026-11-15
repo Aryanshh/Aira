@@ -26,6 +26,14 @@ async def lifespan(app: FastAPI):
     logger.info("aira_api_starting", env=settings.APP_ENV)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    if settings.AUTO_SEED_ON_STARTUP and settings.APP_ENV != "test":
+        try:
+            from app.core.db import async_session_factory
+            from app.core.seed import seed_development_data
+            async with async_session_factory() as session:
+                await seed_development_data(session)
+        except Exception as e:
+            logger.error("seeding_failed", error=str(e))
     yield
     logger.info("aira_api_shutting_down")
     if settings.APP_ENV != "test":

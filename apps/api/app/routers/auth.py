@@ -27,6 +27,7 @@ router = APIRouter(prefix="/api/v1", tags=["Authentication"])
 
 def set_auth_cookies(response: Response, access_token: str, refresh_token: str) -> None:
     """Set secure httpOnly cookies for access and refresh tokens (AUTH-2)."""
+    cookie_domain = settings.COOKIE_DOMAIN if settings.COOKIE_DOMAIN else None
     response.set_cookie(
         key="access_token",
         value=access_token,
@@ -34,7 +35,7 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
         secure=settings.COOKIE_SECURE,
         samesite="lax",
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        domain=settings.COOKIE_DOMAIN,
+        domain=cookie_domain,
         path="/",
     )
     response.set_cookie(
@@ -44,15 +45,16 @@ def set_auth_cookies(response: Response, access_token: str, refresh_token: str) 
         secure=settings.COOKIE_SECURE,
         samesite="lax",
         max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 86400,
-        domain=settings.COOKIE_DOMAIN,
+        domain=cookie_domain,
         path="/",
     )
 
 
 def clear_auth_cookies(response: Response) -> None:
     """Clear session cookies."""
-    response.delete_cookie(key="access_token", domain=settings.COOKIE_DOMAIN, path="/")
-    response.delete_cookie(key="refresh_token", domain=settings.COOKIE_DOMAIN, path="/")
+    cookie_domain = settings.COOKIE_DOMAIN if settings.COOKIE_DOMAIN else None
+    response.delete_cookie(key="access_token", domain=cookie_domain, path="/")
+    response.delete_cookie(key="refresh_token", domain=cookie_domain, path="/")
 
 
 @router.post("/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -237,6 +239,7 @@ async def elder_login(
     """Elder sign-in with access code and 4-digit PIN (AUTH-4)."""
     service = ElderService(db)
     elder, token = await service.elder_login(payload.access_code, payload.pin, payload.device_label)
+    cookie_domain = settings.COOKIE_DOMAIN if settings.COOKIE_DOMAIN else None
     response.set_cookie(
         key="access_token",
         value=token,
@@ -244,7 +247,7 @@ async def elder_login(
         secure=settings.COOKIE_SECURE,
         samesite="lax",
         max_age=30 * 86400,
-        domain=settings.COOKIE_DOMAIN,
+        domain=cookie_domain,
         path="/",
     )
     return TokenResponse(
@@ -263,6 +266,7 @@ async def elder_qr_login(
     """Elder sign-in using personal QR login link (AUTH-4)."""
     service = ElderService(db)
     elder, token = await service.elder_qr_login(payload.token, payload.device_label)
+    cookie_domain = settings.COOKIE_DOMAIN if settings.COOKIE_DOMAIN else None
     response.set_cookie(
         key="access_token",
         value=token,
@@ -270,7 +274,7 @@ async def elder_qr_login(
         secure=settings.COOKIE_SECURE,
         samesite="lax",
         max_age=30 * 86400,
-        domain=settings.COOKIE_DOMAIN,
+        domain=cookie_domain,
         path="/",
     )
     return TokenResponse(

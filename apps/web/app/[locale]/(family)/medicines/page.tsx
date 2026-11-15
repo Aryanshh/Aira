@@ -161,8 +161,20 @@ export default function MedicinesListPage() {
 
   if (!selectedElder) {
     return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-bold text-text-primary">{t("noElderSelected")}</h2>
+      <div className="max-w-xl mx-auto py-12 px-4 text-center">
+        <h2 className="text-xl font-bold text-text-primary mb-2">
+          {locale === "hi" ? "कोई बुजुर्ग चुना नहीं गया" : "No Elder Profile Selected"}
+        </h2>
+        <p className="text-text-secondary text-sm mb-6">
+          {locale === "hi"
+            ? "दवाएं प्रबंधित करने के लिए पहले एक बुजुर्ग का प्रोफाइल बनाएं।"
+            : "Please create an elder profile to manage medicines."}
+        </p>
+        <Link href={`/${locale}/elders/new`}>
+          <Button className="font-bold">
+            {locale === "hi" ? "+ बुजुर्ग प्रोफाइल जोड़ें" : "+ Add Elder Profile"}
+          </Button>
+        </Link>
       </div>
     );
   }
