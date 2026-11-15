@@ -83,6 +83,6 @@ export default async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Match all request paths except for internal /api, _next, static assets
-  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
+  // Match all request paths except for internal /api, /health, /ready, _next, static assets
+  matcher: ["/((?!api|health|ready|_next|_vercel|.*\\..*).*)"],
 };
