@@ -377,7 +377,7 @@ export default function SosManagementPage() {
                   key={contact.id}
                   className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-border bg-bg-app hover:bg-surface-muted/50 transition-colors gap-4"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* Escalation badge */}
                     <div
                       className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
@@ -389,32 +389,32 @@ export default function SosManagementPage() {
                       {contact.escalation_order}
                     </div>
 
-                    <div>
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-text-primary text-base">
+                        <span className="font-bold text-text-primary text-base truncate">
                           {contact.full_name}
                         </span>
                         {isFirst && (
-                          <span className="bg-red-50 text-emergency text-xs font-bold px-2 py-0.5 rounded-full border border-red-200">
+                          <span className="bg-red-50 text-emergency text-xs font-bold px-2 py-0.5 rounded-full border border-red-200 shrink-0">
                             {t("primaryBadge")}
                           </span>
                         )}
-                        <span className="bg-primary-soft text-primary text-xs font-medium px-2 py-0.5 rounded-full capitalize">
+                        <span className="bg-primary-soft text-primary text-xs font-medium px-2 py-0.5 rounded-full capitalize shrink-0">
                           {t(`role_${contact.role}`)}
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-4 text-xs text-text-secondary mt-1 flex-wrap">
-                        <span className="flex items-center gap-1 font-mono">
+                      <div className="flex items-center gap-3 sm:gap-4 text-xs text-text-secondary mt-1 flex-wrap">
+                        <span className="flex items-center gap-1 font-mono shrink-0">
                           <Phone className="w-3.5 h-3.5 text-text-muted" />
                           {contact.phone_e164}
                         </span>
                         {contact.whatsapp_opt_in && (
-                          <span className="text-emerald-700 font-medium">
+                          <span className="text-emerald-700 font-medium shrink-0">
                             ✓ {t("whatsappOptedIn")}
                           </span>
                         )}
-                        <span className="text-text-muted">
+                        <span className="text-text-muted truncate">
                           Channels: {contact.preferred_channels.join(", ")}
                         </span>
                       </div>
@@ -422,7 +422,7 @@ export default function SosManagementPage() {
                   </div>
 
                   {/* Actions & Ordering */}
-                  <div className="flex items-center gap-1.5 self-end sm:self-center">
+                  <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
                     <button
                       type="button"
                       disabled={isFirst}
@@ -511,7 +511,7 @@ export default function SosManagementPage() {
                   className="p-5 rounded-xl border border-border bg-bg-app space-y-3"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 flex-wrap">
                       <span
                         className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
                           item.status === "active"

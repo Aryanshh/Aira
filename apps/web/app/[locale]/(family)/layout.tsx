@@ -118,7 +118,7 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
                 <div className={`p-1 rounded-xl transition-colors ${isActive ? "bg-primary-soft text-primary" : ""}`}>
                   <Icon className="w-5 h-5" />
                 </div>
-                <span className="mt-0.5 leading-none tracking-tight">{item.label}</span>
+                <span className="mt-0.5 leading-none tracking-tight truncate max-w-[62px] text-center">{item.label}</span>
               </Link>
             );
           })}

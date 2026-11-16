@@ -333,7 +333,7 @@ export default function NewMedicinePage() {
                         key={d.num}
                         type="button"
                         onClick={() => toggleDayOfWeek(d.num)}
-                        className={`w-10 h-10 rounded-xl text-sm font-bold transition-all ${
+                        className={`w-10 h-10 rounded-xl text-sm font-bold flex items-center justify-center shrink-0 transition-all ${
                           daysOfWeek.includes(d.num)
                             ? "bg-primary text-white"
                             : "bg-surface-muted text-text-secondary hover:bg-surface-muted/80"

@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { useElder } from "@/components/elder-context";
+import { AiraLogo } from "@/components/aira-logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -149,9 +150,7 @@ export default function StatusDashboardPage() {
   if (!selectedElder) {
     return (
       <div className="max-w-xl mx-auto py-12 px-4 text-center">
-        <div className="w-16 h-16 rounded-full bg-primary-soft text-primary mx-auto flex items-center justify-center mb-4">
-          <Heart className="w-8 h-8 fill-current" />
-        </div>
+        <AiraLogo size="lg" className="mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-text-primary mb-2">
           {locale === "hi" ? "AIRA Care में आपका स्वागत है" : "Welcome to AIRA Care"}
         </h2>
@@ -225,25 +224,25 @@ export default function StatusDashboardPage() {
       {/* VIEW: DAY SUMMARY (STA-1) */}
       {viewMode === "day" && daySummary && (
         <div className="space-y-6">
-          <Card className="p-6 sm:p-8 bg-surface border border-border shadow-md">
+          <Card className="p-5 sm:p-8 bg-surface border border-border shadow-md">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               {/* Left: Progress Circle & Adherence */}
-              <div className="flex items-center gap-6">
-                <div className="relative w-28 h-28 flex items-center justify-center">
+              <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center sm:text-left w-full md:w-auto">
+                <div className="relative w-32 h-32 sm:w-36 sm:h-36 shrink-0 flex items-center justify-center">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                     <circle
                       cx="50"
                       cy="50"
-                      r="40"
-                      className="stroke-surface-muted fill-none stroke-[8]"
+                      r="41"
+                      className="stroke-surface-muted fill-none stroke-[7]"
                     />
                     <circle
                       cx="50"
                       cy="50"
-                      r="40"
-                      strokeDasharray={251.2}
-                      strokeDashoffset={251.2 - (251.2 * (daySummary.adherence_pct || 0)) / 100}
-                      className={`fill-none stroke-[8] transition-all duration-700 ease-out ${
+                      r="41"
+                      strokeDasharray={257.6}
+                      strokeDashoffset={257.6 - (257.6 * (daySummary.adherence_pct || 0)) / 100}
+                      className={`fill-none stroke-[7] transition-all duration-700 ease-out ${
                         daySummary.state === "all_taken"
                           ? "stroke-accent-green"
                           : daySummary.state === "has_missed"
@@ -253,18 +252,21 @@ export default function StatusDashboardPage() {
                       strokeLinecap="round"
                     />
                   </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-2xl font-black text-text-primary tracking-tight">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center px-1 text-center pointer-events-none select-none">
+                    <span className="text-2xl sm:text-3xl font-black text-text-primary tracking-tight leading-none">
                       {daySummary.adherence_pct}%
                     </span>
-                    <span className="text-3xs uppercase font-bold text-text-secondary">
+                    <span
+                      className="text-[10px] sm:text-2xs uppercase font-bold text-text-secondary tracking-wider mt-1 px-1 truncate max-w-[85px] sm:max-w-[100px] leading-tight"
+                      title={t("adherenceLabel")}
+                    >
                       {t("adherenceLabel")}
                     </span>
                   </div>
                 </div>
 
-                <div>
-                  <h2 className="text-xl font-bold text-text-primary">
+                <div className="min-w-0">
+                  <h2 className="text-xl sm:text-2xl font-bold text-text-primary">
                     {daySummary.state === "all_taken" && t("allDoneTitle")}
                     {daySummary.state === "in_progress" && t("inProgressTitle")}
                     {daySummary.state === "has_missed" && t("hasMissedTitle")}
@@ -280,7 +282,7 @@ export default function StatusDashboardPage() {
               </div>
 
               {/* Right: State Pill / Celebration */}
-              <div className="text-center md:text-right">
+              <div className="text-center md:text-right shrink-0">
                 {daySummary.state === "all_taken" && (
                   <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-green/15 text-accent-green font-bold text-sm border border-accent-green/30">
                     <Sparkles className="w-4 h-4" />
@@ -307,7 +309,7 @@ export default function StatusDashboardPage() {
             </div>
 
             {/* Privacy notice banner (Section 1.2) */}
-            <div className="mt-6 pt-4 border-t border-border flex items-center justify-between text-xs text-text-secondary">
+            <div className="mt-6 pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-text-secondary">
               <span>{t("privacyHonestStatusNotice")}</span>
               <Link href={`/${locale}/medicines`} className="text-primary font-semibold hover:underline">
                 {t("manageMedicinesLink")} &rarr;
@@ -320,8 +322,8 @@ export default function StatusDashboardPage() {
       {/* VIEW: WEEK SUMMARY (STA-2) */}
       {viewMode === "week" && weekSummary && (
         <div className="space-y-6">
-          <Card className="p-6 bg-surface border border-border shadow-sm">
-            <div className="flex items-center justify-between mb-6">
+          <Card className="p-4 sm:p-6 bg-surface border border-border shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">
                   {t("weekOverviewTitle")}
@@ -330,7 +332,7 @@ export default function StatusDashboardPage() {
                   {t("weekOverallAdherence", { pct: weekSummary.overall_adherence_pct })}
                 </h2>
               </div>
-              <div className="text-right text-xs text-text-secondary">
+              <div className="text-left sm:text-right text-xs text-text-secondary">
                 <span>
                   {weekSummary.total_taken} / {weekSummary.total_scheduled} {t("dosesTakenTotal")}
                 </span>
@@ -363,13 +365,13 @@ export default function StatusDashboardPage() {
                 return (
                   <div
                     key={day.date}
-                    className={`p-1.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${chipColor}`}
+                    className={`p-1 sm:p-2.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all min-w-0 overflow-hidden ${chipColor}`}
                   >
-                    <span className="text-[11px] sm:text-xs font-semibold">{dayName}</span>
+                    <span className="text-[10px] sm:text-xs font-semibold truncate w-full">{dayName}</span>
                     <span className="text-sm sm:text-lg font-bold my-0.5 sm:my-1">{dayNum}</span>
-                    <div className="flex items-center gap-1">
-                      <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${dotColor}`} />
-                      <span className="text-[10px] sm:text-xs font-medium">
+                    <div className="flex items-center justify-center gap-0.5 sm:gap-1 w-full">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dotColor}`} />
+                      <span className="text-[9px] sm:text-xs font-bold truncate leading-none">
                         {day.total_scheduled > 0 ? `${day.adherence_pct}%` : "—"}
                       </span>
                     </div>
@@ -384,9 +386,9 @@ export default function StatusDashboardPage() {
       {/* VIEW: MONTH CALENDAR (STA-3) */}
       {viewMode === "month" && monthSummary && (
         <div className="space-y-6">
-          <Card className="p-6 bg-surface border border-border shadow-sm">
+          <Card className="p-4 sm:p-6 bg-surface border border-border shadow-sm">
             {/* Month Header & Controls */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">
                   {t("monthOverviewTitle")}
@@ -399,11 +401,12 @@ export default function StatusDashboardPage() {
                 </h2>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between sm:justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => changeMonth(-1)}
                   className="p-2 rounded-lg border border-border hover:bg-surface-muted transition-colors"
+                  aria-label="Previous month"
                 >
                   <ChevronLeft className="w-4 h-4 text-text-secondary" />
                 </button>
@@ -414,6 +417,7 @@ export default function StatusDashboardPage() {
                   type="button"
                   onClick={() => changeMonth(1)}
                   className="p-2 rounded-lg border border-border hover:bg-surface-muted transition-colors"
+                  aria-label="Next month"
                 >
                   <ChevronRight className="w-4 h-4 text-text-secondary" />
                 </button>
@@ -429,7 +433,7 @@ export default function StatusDashboardPage() {
                 return (
                   <div
                     key={day.date}
-                    className={`h-12 sm:h-16 p-1 sm:p-2 rounded-xl border flex flex-col justify-between transition-all ${
+                    className={`h-12 sm:h-16 p-1 sm:p-2 rounded-xl border flex flex-col justify-between transition-all min-w-0 overflow-hidden ${
                       hasDoses
                         ? day.state === "all_taken"
                           ? "bg-accent-green/10 border-accent-green/30"
@@ -441,9 +445,9 @@ export default function StatusDashboardPage() {
                   >
                     <span className="text-[11px] sm:text-xs font-bold text-text-primary">{dayNum}</span>
                     {hasDoses && (
-                      <div className="text-right">
+                      <div className="text-right overflow-hidden">
                         <span
-                          className={`text-[9px] sm:text-2xs font-bold ${
+                          className={`text-[9px] sm:text-2xs font-bold truncate block ${
                             day.state === "all_taken"
                               ? "text-accent-green"
                               : day.state === "has_missed"

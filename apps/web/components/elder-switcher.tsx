@@ -62,7 +62,7 @@ export function ElderSwitcher() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 rounded-xl bg-surface border border-border shadow-md py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute left-0 mt-2 w-64 max-w-[calc(100vw-2rem)] rounded-xl bg-surface border border-border shadow-md py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
           <div className="px-3 py-1.5 text-xs font-semibold text-text-secondary uppercase tracking-wider">
             {t("elders")}
           </div>

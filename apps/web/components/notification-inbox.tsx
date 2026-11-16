@@ -124,7 +124,7 @@ export function NotificationInbox() {
 
       {/* Dropdown Menu with Responsive Sizing */}
       {isOpen && (
-        <div className="absolute -right-8 sm:right-0 mt-2 w-[calc(100vw-2rem)] max-w-sm sm:w-96 rounded-2xl bg-surface border border-border shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+        <div className="absolute right-0 mt-2 w-[calc(100vw-1.5rem)] max-w-sm sm:w-96 rounded-2xl bg-surface border border-border shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border bg-bg-app">
             <div className="flex items-center gap-2">

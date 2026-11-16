@@ -4,8 +4,9 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { AlertCircle, Heart, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
 
+import { AiraLogo } from "@/components/aira-logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -53,9 +54,7 @@ export default function ElderQrLoginPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-bg-app flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 rounded-full bg-primary-soft text-primary flex items-center justify-center animate-pulse mb-4">
-          <Heart className="w-8 h-8 fill-current" />
-        </div>
+        <AiraLogo size="lg" animateHeartbeat={true} className="mb-4" />
         <h1 className="text-xl font-bold text-text-primary">{tCommon("loading")}</h1>
         <p className="text-sm text-text-secondary mt-1">{t("welcome")}</p>
       </div>

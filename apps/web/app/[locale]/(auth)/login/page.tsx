@@ -195,7 +195,7 @@ export default function LoginPage() {
               placeholder="••••••••••"
             />
 
-            <div className="flex justify-between items-center text-xs">
+            <div className="flex flex-wrap justify-between items-center gap-2 text-xs">
               <button
                 type="button"
                 onClick={fillDemoCaregiver}

@@ -487,9 +487,7 @@ export default function ElderSimpleViewPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-bg-app flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-16 h-16 rounded-full bg-primary-soft text-primary flex items-center justify-center animate-pulse mb-4">
-          <Heart className="w-8 h-8 fill-current" />
-        </div>
+        <AiraLogo size="lg" animateHeartbeat={true} className="mb-4" />
         <p className="text-xl font-bold text-text-primary">{tCommon("loading")}</p>
       </div>
     );
@@ -940,17 +938,17 @@ function PeriodCard({
                 }}
               >
                 {/* Medicine info */}
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-stone-100 text-stone-700 font-mono">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-stone-100 text-stone-700 font-mono shrink-0">
                       {dose.scheduled_time.slice(0, 5)}
                     </span>
-                    <h4 className={`text-stone-900 ${fontScale.medName}`}>
+                    <h4 className={`text-stone-900 truncate ${fontScale.medName}`}>
                       {dose.medicine_name}
                     </h4>
                   </div>
 
-                  <p className={`text-stone-600 font-semibold ${fontScale.body}`}>
+                  <p className={`text-stone-600 font-semibold break-words ${fontScale.body}`}>
                     {dose.dose_label}
                     {dose.instructions && ` • ${dose.instructions}`}
                   </p>

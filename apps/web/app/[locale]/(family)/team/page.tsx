@@ -307,31 +307,31 @@ export default function CareTeamPage() {
             key={member.user_id}
             className="p-4 sm:p-5 flex items-center justify-between gap-4 bg-surface border border-border shadow-2xs hover:border-border/80 transition-all"
           >
-            <div className="flex items-center gap-3.5">
+            <div className="flex items-center gap-3.5 min-w-0 flex-1">
               <div className="w-10 h-10 rounded-full bg-primary-soft text-primary font-bold flex items-center justify-center shrink-0">
                 {member.full_name.charAt(0).toUpperCase()}
               </div>
 
-              <div>
+              <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-text-primary">{member.full_name}</span>
+                  <span className="font-semibold text-text-primary truncate">{member.full_name}</span>
                   {member.is_owner && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-accent-amber/15 text-accent-amber border border-accent-amber/30">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-accent-amber/15 text-accent-amber border border-accent-amber/30 shrink-0">
                       <Shield className="w-3 h-3" />
                       <span>{t("badgeOwner")}</span>
                     </span>
                   )}
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface-muted text-text-secondary border border-border capitalize">
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-surface-muted text-text-secondary border border-border capitalize shrink-0">
                     {member.role === "caregiver" ? t("roleCaregiver") : t("roleFamily")}
                   </span>
                   {member.can_manage_medicines && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-accent-green/15 text-accent-green border border-accent-green/30">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-accent-green/15 text-accent-green border border-accent-green/30 shrink-0">
                       <Pill className="w-3 h-3" />
                       <span>{t("canManageMedsBadge")}</span>
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-text-secondary mt-0.5">{member.email}</p>
+                <p className="text-xs text-text-secondary mt-0.5 truncate">{member.email}</p>
               </div>
             </div>
 
