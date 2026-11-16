@@ -21,7 +21,7 @@ from app.models.sos import (
     SosStatus,
 )
 from app.models.user import CareRole, NotifCategory, User
-from app.routers.deps import CurrentActor
+from app.core.actor import CurrentActor
 from app.schemas.sos import (
     ContactCreateRequest,
     ContactResponse,
