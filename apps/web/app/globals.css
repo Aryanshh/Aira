@@ -65,6 +65,28 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Splash Screen Animations */
+@keyframes heartbeat {
+  0% { transform: scale(1); }
+  14% { transform: scale(1.06); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.06); }
+  70% { transform: scale(1); }
+}
+
+.animate-heartbeat {
+  animation: heartbeat 2s ease-in-out infinite;
+}
+
+@keyframes splashProgress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+.animate-splash-progress {
+  animation: splashProgress 5s linear forwards;
+}
+
 /* Custom scrollbar for clean dashboard tables & sheets */
 ::-webkit-scrollbar {
   width: 6px;
