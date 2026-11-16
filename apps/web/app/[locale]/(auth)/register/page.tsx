@@ -125,6 +125,9 @@ export default function RegisterPage() {
             <Input
               label={t("emailLabel")}
               type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
               required
               autoComplete="email"
               value={email}

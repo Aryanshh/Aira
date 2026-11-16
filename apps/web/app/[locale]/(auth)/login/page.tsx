@@ -176,6 +176,9 @@ export default function LoginPage() {
             <Input
               label={t("emailLabel")}
               type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
               required
               autoComplete="email"
               value={email}
@@ -233,6 +236,9 @@ export default function LoginPage() {
             <Input
               label={t("accessCodeLabel")}
               type="text"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
               required
               value={accessCode}
               onChange={(e) => setAccessCode(e.target.value)}

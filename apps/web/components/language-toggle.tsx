@@ -21,11 +21,11 @@ export function LanguageToggle() {
       variant="outline"
       size="sm"
       onClick={toggleLanguage}
-      className="font-medium text-sm flex items-center gap-1.5"
+      className="font-medium text-xs sm:text-sm px-2 sm:px-3 h-8 sm:h-9 flex items-center gap-1 active:scale-95"
       aria-label="Toggle language between English and Hindi"
     >
       <span>🌐</span>
-      <span>{locale === "en" ? "हिन्दी" : "English"}</span>
+      <span>{locale === "en" ? "हिन्दी" : "EN"}</span>
     </Button>
   );
 }

@@ -50,15 +50,15 @@ export function ElderSwitcher() {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-surface border border-border shadow-xs hover:border-primary/40 focus:outline-hidden focus:ring-2 focus:ring-primary/20 transition-all text-sm font-medium text-text-primary"
+        className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-surface border border-border shadow-xs hover:border-primary/40 focus:outline-hidden focus:ring-2 focus:ring-primary/20 transition-all text-sm font-medium text-text-primary"
         aria-haspopup="true"
         aria-expanded={isOpen}
       >
-        <div className="w-6 h-6 rounded-full bg-primary-soft text-primary flex items-center justify-center text-xs font-bold">
+        <div className="w-6 h-6 rounded-full bg-primary-soft text-primary flex items-center justify-center text-xs font-bold shrink-0">
           {displayName.charAt(0).toUpperCase()}
         </div>
-        <span className="truncate max-w-[130px] sm:max-w-[180px]">{displayName}</span>
-        <ChevronDown className="w-4 h-4 text-text-secondary" />
+        <span className="truncate max-w-[95px] sm:max-w-[180px] text-xs sm:text-sm">{displayName}</span>
+        <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-text-secondary shrink-0" />
       </button>
 
       {isOpen && (

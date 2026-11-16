@@ -374,10 +374,13 @@ export default function ElderSimpleViewPage() {
     }
   };
 
+  const touchStartPos = React.useRef<{ x: number; y: number } | null>(null);
+
   // 2-Second Hold-to-Activate SOS Logic (ELD-V4)
   const startSosHold = () => {
     setIsHoldingSos(true);
     setSosProgress(0);
+    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(30);
 
     const startTime = Date.now();
     const duration = 2000; // 2 seconds
@@ -391,6 +394,22 @@ export default function ElderSimpleViewPage() {
     holdTimerRef.current = setTimeout(() => {
       triggerSosNow();
     }, duration);
+  };
+
+  const handleTouchStartSos = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    startSosHold();
+  };
+
+  const handleTouchMoveSos = (e: React.TouchEvent) => {
+    if (!touchStartPos.current) return;
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - touchStartPos.current.x);
+    const dy = Math.abs(touch.clientY - touchStartPos.current.y);
+    if (dx > 12 || dy > 12) {
+      cancelSosHold();
+    }
   };
 
   const cancelSosHold = () => {
@@ -478,28 +497,28 @@ export default function ElderSimpleViewPage() {
   const primaryContact = contacts[0] || null;
 
   return (
-    <div className="min-h-screen bg-[#FFF9F3] text-stone-900 flex flex-col font-sans select-none pb-24">
-      {/* Top Header Bar */}
-      <header className="sticky top-0 z-30 bg-[#FFF9F3]/95 backdrop-blur-md border-b border-amber-200/60 px-4 sm:px-8 py-3.5 shadow-2xs">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-[#FFF9F3] text-stone-900 flex flex-col font-sans select-none pb-[calc(5rem+env(safe-area-inset-bottom,0px))]">
+      {/* Top Header Bar with Safe Area Support */}
+      <header className="sticky top-0 z-30 bg-[#FFF9F3]/95 backdrop-blur-md border-b border-amber-200/60 px-3 sm:px-8 py-2.5 sm:py-3.5 shadow-2xs pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           {/* Brand & Greeting */}
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-primary shadow-xs shrink-0">
-              <Heart className="w-7 h-7 fill-current" />
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-primary shadow-xs shrink-0">
+              <Heart className="w-6 h-6 sm:w-7 sm:h-7 fill-current" />
             </div>
-            <div>
-              <h1 className="text-lg sm:text-xl font-black tracking-tight text-stone-900">
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl font-black tracking-tight text-stone-900 truncate">
                 {t("greeting")},{" "}
                 <span className="text-primary font-black">
                   {profile?.preferred_name || profile?.full_name || "Care"}
                 </span>
               </h1>
-              <p className="text-xs sm:text-sm font-medium text-stone-600">{currentDate}</p>
+              <p className="text-[11px] sm:text-sm font-medium text-stone-600 truncate">{currentDate}</p>
             </div>
           </div>
 
           {/* Accessibility Controls: Text Size & Language */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             {/* Offline Pill if offline */}
             {!isOnline && (
               <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold">
@@ -509,11 +528,11 @@ export default function ElderSimpleViewPage() {
             )}
 
             {/* Text Size Stepper (A / A+ / A++) */}
-            <div className="flex items-center bg-stone-100 rounded-xl p-1 border border-stone-200">
+            <div className="flex items-center bg-stone-100 rounded-xl p-0.5 sm:p-1 border border-stone-200">
               <button
                 type="button"
                 onClick={() => handleChangeTextSize(0)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg text-xs font-bold transition-all ${
                   textSize === 0 ? "bg-white text-stone-900 shadow-xs" : "text-stone-500 hover:text-stone-900"
                 }`}
                 title="Normal text"
@@ -523,7 +542,7 @@ export default function ElderSimpleViewPage() {
               <button
                 type="button"
                 onClick={() => handleChangeTextSize(1)}
-                className={`px-2.5 py-1 rounded-lg text-sm font-bold transition-all ${
+                className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg text-xs sm:text-sm font-bold transition-all ${
                   textSize === 1 ? "bg-white text-stone-900 shadow-xs" : "text-stone-500 hover:text-stone-900"
                 }`}
                 title="Large text"
@@ -533,7 +552,7 @@ export default function ElderSimpleViewPage() {
               <button
                 type="button"
                 onClick={() => handleChangeTextSize(2)}
-                className={`px-2.5 py-1 rounded-lg text-base font-bold transition-all ${
+                className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg text-xs sm:text-base font-bold transition-all ${
                   textSize === 2 ? "bg-white text-stone-900 shadow-xs" : "text-stone-500 hover:text-stone-900"
                 }`}
                 title="Extra large text"
@@ -543,11 +562,11 @@ export default function ElderSimpleViewPage() {
             </div>
 
             {/* Language Toggle */}
-            <div className="flex items-center bg-stone-100 rounded-xl p-1 border border-stone-200 text-xs font-bold">
+            <div className="flex items-center bg-stone-100 rounded-xl p-0.5 sm:p-1 border border-stone-200 text-xs font-bold">
               <button
                 type="button"
                 onClick={() => handleSwitchLanguage("hi")}
-                className={`px-2.5 py-1 rounded-lg transition-all ${
+                className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg transition-all ${
                   locale === "hi" ? "bg-primary text-white shadow-xs" : "text-stone-600 hover:text-stone-900"
                 }`}
               >
@@ -556,7 +575,7 @@ export default function ElderSimpleViewPage() {
               <button
                 type="button"
                 onClick={() => handleSwitchLanguage("en")}
-                className={`px-2.5 py-1 rounded-lg transition-all ${
+                className={`px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg transition-all ${
                   locale === "en" ? "bg-primary text-white shadow-xs" : "text-stone-600 hover:text-stone-900"
                 }`}
               >
@@ -569,9 +588,9 @@ export default function ElderSimpleViewPage() {
               type="button"
               onClick={handleSignOut}
               title={t("signOut")}
-              className="p-2.5 rounded-xl text-stone-500 hover:text-stone-800 hover:bg-stone-100 transition-colors"
+              className="p-2 sm:p-2.5 rounded-xl text-stone-500 hover:text-stone-800 hover:bg-stone-100 transition-colors active:scale-95"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
@@ -641,13 +660,14 @@ export default function ElderSimpleViewPage() {
                 onMouseDown={startSosHold}
                 onMouseUp={cancelSosHold}
                 onMouseLeave={cancelSosHold}
-                onTouchStart={startSosHold}
+                onTouchStart={handleTouchStartSos}
+                onTouchMove={handleTouchMoveSos}
                 onTouchEnd={cancelSosHold}
                 onTouchCancel={cancelSosHold}
-                className={`relative w-full overflow-hidden rounded-2xl transition-all shadow-md active:scale-[0.98] ${
+                className={`relative w-full overflow-hidden rounded-2xl transition-all shadow-md active:scale-[0.98] select-none ${
                   isHoldingSos ? "bg-red-700 ring-4 ring-red-400" : "bg-red-600 hover:bg-red-700"
                 }`}
-                style={{ minHeight: "84px" }}
+                style={{ minHeight: "84px", touchAction: "none", userSelect: "none", WebkitUserSelect: "none" }}
               >
                 {/* Visual Fill Progress for 2-second hold */}
                 <div

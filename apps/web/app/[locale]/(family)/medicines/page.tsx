@@ -298,8 +298,8 @@ export default function MedicinesListPage() {
                   )}
                 </div>
 
-                {/* Stock Details */}
-                <div className="flex items-center gap-4 text-right sm:border-l sm:border-border sm:pl-5">
+                {/* Stock Details & Actions */}
+                <div className="flex items-center justify-between sm:justify-end gap-4 text-left sm:text-right pt-3 border-t border-border/70 sm:border-t-0 sm:pt-0 sm:border-l sm:border-border sm:pl-5">
                   <Link
                     href={`/${locale}/medicines/${med.id}/stock`}
                     className="text-left sm:text-right group hover:opacity-80 transition-opacity"

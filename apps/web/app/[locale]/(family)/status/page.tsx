@@ -185,7 +185,7 @@ export default function StatusDashboardPage() {
         </div>
 
         {/* Day / Week / Month Pill Tabs */}
-        <div className="inline-flex p-1 bg-surface-muted rounded-xl border border-border self-start sm:self-auto">
+        <div className="inline-flex w-full sm:w-auto p-1 bg-surface-muted rounded-xl border border-border">
           {[
             { id: "day", label: t("tabDay") },
             { id: "week", label: t("tabWeek") },
@@ -195,7 +195,7 @@ export default function StatusDashboardPage() {
               key={tab.id}
               type="button"
               onClick={() => setViewMode(tab.id as any)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg text-sm font-semibold transition-all ${
                 viewMode === tab.id
                   ? "bg-surface text-primary shadow-xs font-bold"
                   : "text-text-secondary hover:text-text-primary"
@@ -338,7 +338,7 @@ export default function StatusDashboardPage() {
             </div>
 
             {/* 7 Daily Chips */}
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
               {weekSummary.days.map((day) => {
                 const dayDate = new Date(day.date + "T00:00:00");
                 const dayName = dayDate.toLocaleDateString(locale, { weekday: "short" });
@@ -363,13 +363,13 @@ export default function StatusDashboardPage() {
                 return (
                   <div
                     key={day.date}
-                    className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${chipColor}`}
+                    className={`p-1.5 sm:p-3 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${chipColor}`}
                   >
-                    <span className="text-xs font-semibold">{dayName}</span>
-                    <span className="text-lg font-bold my-1">{dayNum}</span>
+                    <span className="text-[11px] sm:text-xs font-semibold">{dayName}</span>
+                    <span className="text-sm sm:text-lg font-bold my-0.5 sm:my-1">{dayNum}</span>
                     <div className="flex items-center gap-1">
-                      <span className={`w-2 h-2 rounded-full ${dotColor}`} />
-                      <span className="text-xs font-medium">
+                      <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${dotColor}`} />
+                      <span className="text-[10px] sm:text-xs font-medium">
                         {day.total_scheduled > 0 ? `${day.adherence_pct}%` : "—"}
                       </span>
                     </div>
@@ -421,7 +421,7 @@ export default function StatusDashboardPage() {
             </div>
 
             {/* Calendar Grid */}
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
               {monthSummary.days.map((day) => {
                 const dayNum = parseInt(day.date.split("-")[2], 10);
                 const hasDoses = day.total_scheduled > 0;
@@ -429,7 +429,7 @@ export default function StatusDashboardPage() {
                 return (
                   <div
                     key={day.date}
-                    className={`h-16 p-2 rounded-xl border flex flex-col justify-between transition-all ${
+                    className={`h-12 sm:h-16 p-1 sm:p-2 rounded-xl border flex flex-col justify-between transition-all ${
                       hasDoses
                         ? day.state === "all_taken"
                           ? "bg-accent-green/10 border-accent-green/30"
@@ -439,11 +439,11 @@ export default function StatusDashboardPage() {
                         : "bg-surface border-border/50 opacity-50"
                     }`}
                   >
-                    <span className="text-xs font-bold text-text-primary">{dayNum}</span>
+                    <span className="text-[11px] sm:text-xs font-bold text-text-primary">{dayNum}</span>
                     {hasDoses && (
                       <div className="text-right">
                         <span
-                          className={`text-2xs font-bold ${
+                          className={`text-[9px] sm:text-2xs font-bold ${
                             day.state === "all_taken"
                               ? "text-accent-green"
                               : day.state === "has_missed"

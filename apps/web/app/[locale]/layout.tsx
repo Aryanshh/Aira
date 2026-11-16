@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Nunito, Noto_Sans_Devanagari } from "next/font/google";
 import { notFound } from "next/navigation";
 import { NextIntlClientProvider } from "next-intl";
@@ -20,6 +20,15 @@ const notoSansDevanagari = Noto_Sans_Devanagari({
   weight: ["400", "600", "700"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#B5472F",
+};
+
 export const metadata: Metadata = {
   title: "AIRA Care - Care that listens. Companionship that cares.",
   description: "Family, caregiver, and elder companion web app for AIRA.",
@@ -31,7 +40,16 @@ export const metadata: Metadata = {
     ],
     apple: "/icons/icon-192.png",
   },
-  themeColor: "#B5472F",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "AIRA Care",
+  },
+  formatDetection: {
+    telephone: true,
+    email: false,
+    address: false,
+  },
 };
 
 export default async function LocaleLayout({
