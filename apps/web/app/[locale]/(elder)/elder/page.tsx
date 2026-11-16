@@ -11,6 +11,7 @@ import {
   Clock,
   Heart,
   LogOut,
+  MessageSquare,
   Moon,
   Phone,
   Pill,
@@ -53,6 +54,7 @@ interface ContactItem {
   full_name: string;
   role: "family" | "doctor" | "neighbour";
   phone_e164: string;
+  whatsapp_e164?: string | null;
   escalation_order: number;
 }
 
@@ -619,13 +621,22 @@ export default function ElderSimpleViewPage() {
                 {t("sosSent")}
               </h2>
               {primaryContact && (
-                <div className="pt-2">
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
                   <a
                     href={`tel:${primaryContact.phone_e164}`}
-                    className="inline-flex items-center gap-3 px-6 py-3.5 rounded-2xl bg-emerald-600 text-white font-bold text-lg shadow-md hover:bg-emerald-700 transition-all"
+                    className="inline-flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl bg-emerald-600 text-white font-bold text-lg shadow-md hover:bg-emerald-700 active:scale-95 transition-all w-full sm:w-auto"
                   >
                     <Phone className="w-6 h-6 fill-current" />
                     <span>{primaryContact.full_name}: {t("call")}</span>
+                  </a>
+                  <a
+                    href={`https://wa.me/${(primaryContact.whatsapp_e164 || primaryContact.phone_e164).replace(/[^\d]/g, "")}?text=${encodeURIComponent("EMERGENCY SOS: I need urgent help! Please contact me immediately.")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl bg-[#25D366] text-white font-bold text-lg shadow-md hover:bg-[#128C7E] active:scale-95 transition-all w-full sm:w-auto"
+                  >
+                    <MessageSquare className="w-6 h-6 shrink-0" />
+                    <span>{t("sosWhatsappPrimary")}</span>
                   </a>
                 </div>
               )}
@@ -639,13 +650,20 @@ export default function ElderSimpleViewPage() {
                 {t("sosOffline")}
               </h2>
               {primaryContact && (
-                <div className="pt-2">
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
                   <a
                     href={`tel:${primaryContact.phone_e164}`}
-                    className="inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-emerald-600 text-white font-extrabold text-xl shadow-lg hover:bg-emerald-700 transition-all"
+                    className="inline-flex items-center justify-center gap-3 px-8 py-4 rounded-2xl bg-emerald-600 text-white font-extrabold text-xl shadow-lg hover:bg-emerald-700 active:scale-95 transition-all w-full sm:w-auto"
                   >
                     <Phone className="w-6 h-6 fill-current" />
                     <span>{t("call")} {primaryContact.full_name}</span>
+                  </a>
+                  <a
+                    href={`sms:${primaryContact.phone_e164}?body=${encodeURIComponent("EMERGENCY: Please call me immediately!")}`}
+                    className="inline-flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-amber-700 text-white font-bold text-lg shadow-md hover:bg-amber-800 active:scale-95 transition-all w-full sm:w-auto"
+                  >
+                    <MessageSquare className="w-6 h-6 shrink-0" />
+                    <span>{t("sms")}</span>
                   </a>
                 </div>
               )}
@@ -837,14 +855,39 @@ export default function ElderSimpleViewPage() {
                         </p>
                       </div>
 
-                      {/* Tap to Call */}
-                      <a
-                        href={`tel:${contact.phone_e164}`}
-                        className={`inline-flex items-center justify-center gap-2.5 rounded-2xl bg-emerald-600 text-white font-black shadow-md hover:bg-emerald-700 active:scale-[0.98] transition-all ${fontScale.button}`}
-                      >
-                        <Phone className="w-6 h-6 fill-current shrink-0" />
-                        <span>{t("call")}</span>
-                      </a>
+                      {/* Communication Actions: Call, WhatsApp, SMS */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Tap to Call */}
+                        <a
+                          href={`tel:${contact.phone_e164}`}
+                          className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-white font-black shadow-md hover:bg-emerald-700 active:scale-[0.98] transition-all px-4 py-2.5 ${fontScale.button}`}
+                          title={`${t("call")} ${contact.full_name}`}
+                        >
+                          <Phone className="w-5 h-5 fill-current shrink-0" />
+                          <span>{t("call")}</span>
+                        </a>
+
+                        {/* WhatsApp */}
+                        <a
+                          href={`https://wa.me/${(contact.whatsapp_e164 || contact.phone_e164).replace(/[^\d]/g, "")}?text=${encodeURIComponent("Namaste! Thinking of you.")}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-[#25D366] text-white font-black shadow-md hover:bg-[#128C7E] active:scale-[0.98] transition-all px-4 py-2.5 ${fontScale.button}`}
+                          title={`${t("whatsapp")} ${contact.full_name}`}
+                        >
+                          <MessageSquare className="w-5 h-5 shrink-0" />
+                          <span>{t("whatsapp")}</span>
+                        </a>
+
+                        {/* SMS */}
+                        <a
+                          href={`sms:${contact.phone_e164}?body=${encodeURIComponent("Namaste! Thinking of you.")}`}
+                          className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-stone-700 text-white font-bold shadow-md hover:bg-stone-800 active:scale-[0.98] transition-all px-4 py-2.5 ${fontScale.button}`}
+                          title={`${t("sms")} ${contact.full_name}`}
+                        >
+                          <span>{t("sms")}</span>
+                        </a>
+                      </div>
                     </div>
                   ))
                 )}

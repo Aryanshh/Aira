@@ -308,7 +308,18 @@
     "resolveNoteLabel": "Resolution Note / What happened (optional)",
     "resolveNotePlaceholder": "e.g. Spoke with Pitaji, he had dropped his spectacles",
     "confirmHandledButton": "Mark as Handled",
-    "resolveFailed": "Unable to resolve SOS alert"
+    "resolveFailed": "Unable to resolve SOS alert",
+    "callContact": "Call",
+    "whatsappContact": "WhatsApp",
+    "smsContact": "SMS",
+    "testMessageButton": "Send Test Alert",
+    "testCallButton": "Initiate Call",
+    "callingContact": "Calling...",
+    "sendingAlert": "Sending...",
+    "messageSentSuccess": "Alert sent to {name} via {channel}",
+    "messageSendFailed": "Failed to send message: {error}",
+    "callInitiatedSuccess": "Call initiated to {name}",
+    "callInitiateFailed": "Failed to initiate call: {error}"
   },
   "notifications": {
     "inboxTitle": "Notifications",
@@ -379,6 +390,10 @@
     "role_doctor": "Doctor",
     "role_neighbour": "Neighbour",
     "signOut": "Sign Out",
-    "confirmSignOut": "Are you sure you want to exit the elder view?"
+    "confirmSignOut": "Are you sure you want to exit the elder view?",
+    "whatsapp": "WhatsApp",
+    "sms": "SMS",
+    "sosCallPrimary": "Call Help",
+    "sosWhatsappPrimary": "WhatsApp SOS"
   }
 }

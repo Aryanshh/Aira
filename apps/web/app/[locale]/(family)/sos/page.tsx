@@ -10,8 +10,11 @@ import {
   CheckCircle2,
   Clock,
   Edit2,
+  MessageSquare,
   Phone,
+  PhoneCall,
   Plus,
+  Send,
   ShieldAlert,
   Trash2,
   UserCheck,
@@ -286,6 +289,79 @@ export default function SosManagementPage() {
     }
   };
 
+  // Direct Communication Notice & API Dispatch State
+  const [actionNotice, setActionNotice] = React.useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [actionLoading, setActionLoading] = React.useState<Record<string, string>>({});
+
+  React.useEffect(() => {
+    if (!actionNotice) return;
+    const timer = setTimeout(() => setActionNotice(null), 6000);
+    return () => clearTimeout(timer);
+  }, [actionNotice]);
+
+  const handleSendTestMessage = async (contact: Contact, channel: "sms" | "whatsapp" = "sms") => {
+    if (!selectedElder) return;
+    setActionLoading((prev) => ({ ...prev, [contact.id]: "msg" }));
+    setActionNotice(null);
+    try {
+      const res = await fetch(`/api/v1/elders/${selectedElder.id}/contacts/${contact.id}/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to send message");
+      }
+      setActionNotice({
+        message: t("messageSentSuccess", { name: contact.full_name, channel: channel.toUpperCase() }),
+        type: "success",
+      });
+      await fetchHistory();
+    } catch (err) {
+      setActionNotice({
+        message: t("messageSendFailed", { error: err instanceof Error ? err.message : "Error" }),
+        type: "error",
+      });
+    } finally {
+      setActionLoading((prev) => {
+        const next = { ...prev };
+        delete next[contact.id];
+        return next;
+      });
+    }
+  };
+
+  const handleInitiateCall = async (contact: Contact) => {
+    if (!selectedElder) return;
+    setActionLoading((prev) => ({ ...prev, [contact.id]: "call" }));
+    setActionNotice(null);
+    try {
+      const res = await fetch(`/api/v1/elders/${selectedElder.id}/contacts/${contact.id}/call`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Failed to initiate call");
+      }
+      setActionNotice({
+        message: t("callInitiatedSuccess", { name: contact.full_name }),
+        type: "success",
+      });
+    } catch (err) {
+      setActionNotice({
+        message: t("callInitiateFailed", { error: err instanceof Error ? err.message : "Error" }),
+        type: "error",
+      });
+    } finally {
+      setActionLoading((prev) => {
+        const next = { ...prev };
+        delete next[contact.id];
+        return next;
+      });
+    }
+  };
+
   if (!selectedElder) {
     return (
       <div className="bg-surface rounded-2xl p-8 text-center border border-border">
@@ -349,6 +425,25 @@ export default function SosManagementPage() {
           </div>
         )}
 
+        {actionNotice && (
+          <div
+            className={`p-3.5 rounded-xl border flex items-center justify-between text-sm font-semibold transition-all ${
+              actionNotice.type === "success"
+                ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+                : "bg-red-50 text-red-900 border-red-200"
+            }`}
+          >
+            <span>{actionNotice.message}</span>
+            <button
+              type="button"
+              onClick={() => setActionNotice(null)}
+              className="p-1 hover:opacity-75"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {loadingContacts ? (
           <div className="py-8 text-center text-text-secondary text-sm">
             {tCommon("loading")}
@@ -405,10 +500,14 @@ export default function SosManagementPage() {
                       </div>
 
                       <div className="flex items-center gap-3 sm:gap-4 text-xs text-text-secondary mt-1 flex-wrap">
-                        <span className="flex items-center gap-1 font-mono shrink-0">
+                        <a
+                          href={`tel:${contact.phone_e164}`}
+                          className="flex items-center gap-1 font-mono hover:text-primary transition-colors font-semibold"
+                          title={`${t("callContact")} ${contact.phone_e164}`}
+                        >
                           <Phone className="w-3.5 h-3.5 text-text-muted" />
                           {contact.phone_e164}
-                        </span>
+                        </a>
                         {contact.whatsapp_opt_in && (
                           <span className="text-emerald-700 font-medium shrink-0">
                             ✓ {t("whatsappOptedIn")}
@@ -417,6 +516,72 @@ export default function SosManagementPage() {
                         <span className="text-text-muted truncate">
                           Channels: {contact.preferred_channels.join(", ")}
                         </span>
+                      </div>
+
+                      {/* Direct Call & Message Actions */}
+                      <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                        {/* Native Phone Dialer */}
+                        <a
+                          href={`tel:${contact.phone_e164}`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold hover:bg-emerald-100 transition-colors"
+                          title={`${t("callContact")} ${contact.phone_e164}`}
+                        >
+                          <Phone className="w-3.5 h-3.5 fill-current" />
+                          <span>{t("callContact")}</span>
+                        </a>
+
+                        {/* WhatsApp Web / Mobile */}
+                        <a
+                          href={`https://wa.me/${(contact.whatsapp_e164 || contact.phone_e164).replace(/[^\d]/g, "")}?text=${encodeURIComponent(
+                            `Aira Health Alert for ${selectedElder.preferred_name || selectedElder.full_name}: Please check in.`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#25D366]/15 text-[#075E54] border border-[#25D366]/30 text-xs font-bold hover:bg-[#25D366]/25 transition-colors"
+                          title={`${t("whatsappContact")} ${contact.full_name}`}
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>{t("whatsappContact")}</span>
+                        </a>
+
+                        {/* Native SMS */}
+                        <a
+                          href={`sms:${contact.phone_e164}?body=${encodeURIComponent(
+                            `Aira Health Alert for ${selectedElder.preferred_name || selectedElder.full_name}: Please check in.`
+                          )}`}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface text-text-secondary border border-border text-xs font-semibold hover:bg-surface-muted transition-colors"
+                          title={`${t("smsContact")} ${contact.full_name}`}
+                        >
+                          <span>{t("smsContact")}</span>
+                        </a>
+
+                        {/* Server Outbound Test Alert */}
+                        <button
+                          type="button"
+                          disabled={Boolean(actionLoading[contact.id])}
+                          onClick={() => handleSendTestMessage(contact, contact.whatsapp_opt_in ? "whatsapp" : "sms")}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 text-primary border border-primary/25 text-xs font-bold hover:bg-primary/20 disabled:opacity-50 transition-colors"
+                          title={t("testMessageButton")}
+                        >
+                          <Send className="w-3 h-3" />
+                          <span>
+                            {actionLoading[contact.id] === "msg" ? t("sendingAlert") : t("testMessageButton")}
+                          </span>
+                        </button>
+
+                        {/* Server Outbound Voice Call */}
+                        <button
+                          type="button"
+                          disabled={Boolean(actionLoading[contact.id])}
+                          onClick={() => handleInitiateCall(contact)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-xs font-bold hover:bg-amber-100 disabled:opacity-50 transition-colors"
+                          title={t("testCallButton")}
+                        >
+                          <PhoneCall className="w-3 h-3" />
+                          <span>
+                            {actionLoading[contact.id] === "call" ? t("callingContact") : t("testCallButton")}
+                          </span>
+                        </button>
                       </div>
                     </div>
                   </div>

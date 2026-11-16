@@ -2,10 +2,13 @@ import datetime
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 from zoneinfo import ZoneInfo
+import httpx
 from sqlalchemy import func, select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.core.errors import ConflictError, NotFoundError, ValidationError
+from app.core.logging import logger
 from app.core.time import utc_now
 from app.models.notification import Notification, NotificationPreference, Outbox, PushSubscription
 from app.models.sos import DeliveryStatus, SosAttempt
@@ -322,7 +325,9 @@ class NotificationService:
             # Dispatch via adapter
             try:
                 msg.attempts += 1
-                provider_msg_id = f"mock_{channel}_{uuid.uuid4().hex[:12]}"
+                provider_msg_id = await self._dispatch_to_provider(
+                    channel, msg.recipient, msg.template_key, msg.params
+                )
 
                 # In-app channel delivers to notification table
                 if channel == "in_app":
@@ -364,6 +369,112 @@ class NotificationService:
 
         await self.db.flush()
         return dispatched_count
+
+    async def _dispatch_to_provider(
+        self, channel: str, recipient: str, template_key: str, params: Optional[dict] = None
+    ) -> str:
+        """
+        Dispatch message or call through appropriate channel provider (Twilio / Resend / WebPush / Mock).
+        Returns provider message ID.
+        """
+        body_text = render_template(template_key, language="en", params=params or {})
+
+        # Twilio SMS
+        if channel == "sms":
+            if (
+                settings.SMS_ACCOUNT_SID
+                and not settings.SMS_ACCOUNT_SID.startswith("AC_placeholder")
+                and settings.SMS_AUTH_TOKEN
+            ):
+                try:
+                    url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.SMS_ACCOUNT_SID}/Messages.json"
+                    auth = (settings.SMS_ACCOUNT_SID, settings.SMS_AUTH_TOKEN)
+                    data = {"From": settings.SMS_FROM, "To": recipient, "Body": body_text}
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.post(url, data=data, auth=auth)
+                        if resp.status_code in (200, 201):
+                            res_json = resp.json()
+                            logger.info("twilio_sms_dispatched", sid=res_json.get("sid"), to=recipient)
+                            return res_json.get("sid", f"twilio_sms_{uuid.uuid4().hex[:12]}")
+                        logger.warning("twilio_sms_failed", status=resp.status_code, body=resp.text)
+                except Exception as e:
+                    logger.warning("twilio_sms_exception", error=str(e))
+            logger.info("sms_simulated_dispatch", recipient=recipient, body=body_text)
+            return f"mock_sms_{uuid.uuid4().hex[:12]}"
+
+        # Twilio WhatsApp
+        elif channel == "whatsapp":
+            if (
+                settings.SMS_ACCOUNT_SID
+                and not settings.SMS_ACCOUNT_SID.startswith("AC_placeholder")
+                and settings.SMS_AUTH_TOKEN
+            ):
+                try:
+                    url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.SMS_ACCOUNT_SID}/Messages.json"
+                    auth = (settings.SMS_ACCOUNT_SID, settings.SMS_AUTH_TOKEN)
+                    from_num = (
+                        settings.WHATSAPP_FROM
+                        if settings.WHATSAPP_FROM.startswith("whatsapp:")
+                        else f"whatsapp:{settings.WHATSAPP_FROM}"
+                    )
+                    to_num = recipient if recipient.startswith("whatsapp:") else f"whatsapp:{recipient}"
+                    data = {"From": from_num, "To": to_num, "Body": body_text}
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.post(url, data=data, auth=auth)
+                        if resp.status_code in (200, 201):
+                            res_json = resp.json()
+                            logger.info("twilio_whatsapp_dispatched", sid=res_json.get("sid"), to=to_num)
+                            return res_json.get("sid", f"twilio_wa_{uuid.uuid4().hex[:12]}")
+                        logger.warning("twilio_whatsapp_failed", status=resp.status_code, body=resp.text)
+                except Exception as e:
+                    logger.warning("twilio_whatsapp_exception", error=str(e))
+            logger.info("whatsapp_simulated_dispatch", recipient=recipient, body=body_text)
+            return f"mock_wa_{uuid.uuid4().hex[:12]}"
+
+        # Voice Call
+        elif channel in ("call", "voice"):
+            if (
+                settings.SMS_ACCOUNT_SID
+                and not settings.SMS_ACCOUNT_SID.startswith("AC_placeholder")
+                and settings.SMS_AUTH_TOKEN
+            ):
+                try:
+                    url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.SMS_ACCOUNT_SID}/Calls.json"
+                    auth = (settings.SMS_ACCOUNT_SID, settings.SMS_AUTH_TOKEN)
+                    twiml = f"<Response><Say voice='Polly.Aditi'>{body_text}</Say><Pause length='1'/><Say voice='Polly.Aditi'>{body_text}</Say></Response>"
+                    data = {"From": settings.SMS_FROM, "To": recipient, "Twiml": twiml}
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.post(url, data=data, auth=auth)
+                        if resp.status_code in (200, 201):
+                            res_json = resp.json()
+                            logger.info("twilio_call_dispatched", sid=res_json.get("sid"), to=recipient)
+                            return res_json.get("sid", f"twilio_call_{uuid.uuid4().hex[:12]}")
+                        logger.warning("twilio_call_failed", status=resp.status_code, body=resp.text)
+                except Exception as e:
+                    logger.warning("twilio_call_exception", error=str(e))
+            logger.info("voice_call_simulated_dispatch", recipient=recipient, spoken=body_text)
+            return f"mock_call_{uuid.uuid4().hex[:12]}"
+
+        # Email
+        elif channel == "email":
+            if settings.EMAIL_API_KEY and not settings.EMAIL_API_KEY.startswith("re_placeholder"):
+                try:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        resp = await client.post(
+                            "https://api.resend.com/emails",
+                            headers={"Authorization": f"Bearer {settings.EMAIL_API_KEY}"},
+                            json={"from": settings.EMAIL_FROM, "to": [recipient], "subject": "AIRA Care Alert", "text": body_text},
+                        )
+                        if resp.status_code in (200, 201):
+                            res_json = resp.json()
+                            logger.info("resend_email_dispatched", id=res_json.get("id"), to=recipient)
+                            return res_json.get("id", f"resend_{uuid.uuid4().hex[:12]}")
+                except Exception as e:
+                    logger.warning("resend_email_exception", error=str(e))
+            logger.info("email_simulated_dispatch", recipient=recipient, body=body_text)
+            return f"mock_email_{uuid.uuid4().hex[:12]}"
+
+        return f"mock_{channel}_{uuid.uuid4().hex[:12]}"
 
     # --- Delivery Webhook Callback (NOT-3, Section 8.5) ---
 

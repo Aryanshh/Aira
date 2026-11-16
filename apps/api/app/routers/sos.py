@@ -1,6 +1,7 @@
 import uuid
 from typing import List, Optional
 from fastapi import APIRouter, Depends, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
@@ -99,6 +100,48 @@ async def reorder_emergency_contacts(
     """Reorder escalation sequence for emergency contacts (CON-5)."""
     service = SosService(db)
     return await service.reorder_contacts(elder_id, current_user, payload.contact_ids)
+
+
+class ContactMessagePayload(BaseModel):
+    channel: str = "sms"  # "sms" or "whatsapp"
+    custom_text: Optional[str] = None
+
+
+@router.post("/elders/{elder_id}/contacts/{contact_id}/message", status_code=status.HTTP_200_OK)
+async def send_contact_message(
+    elder_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    payload: Optional[ContactMessagePayload] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Send an instant SMS or WhatsApp alert to an emergency contact."""
+    service = SosService(db)
+    channel = payload.channel if payload else "sms"
+    custom_text = payload.custom_text if payload else None
+    return await service.send_contact_message(
+        elder_id=elder_id,
+        contact_id=contact_id,
+        user=current_user,
+        channel=channel,
+        custom_text=custom_text,
+    )
+
+
+@router.post("/elders/{elder_id}/contacts/{contact_id}/call", status_code=status.HTTP_200_OK)
+async def initiate_contact_call(
+    elder_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Initiate an outbound voice call to an emergency contact."""
+    service = SosService(db)
+    return await service.initiate_contact_call(
+        elder_id=elder_id,
+        contact_id=contact_id,
+        user=current_user,
+    )
 
 
 # --- SOS Endpoints (SOS-1 to SOS-6) ---

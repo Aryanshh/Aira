@@ -308,7 +308,18 @@
     "resolveNoteLabel": "समाधान टिप्पणी / क्या हुआ (वैकल्पिक)",
     "resolveNotePlaceholder": "उदा. पिताजी से बात की, उनका चश्मा गिर गया था",
     "confirmHandledButton": "निपटारा हुआ मार्क करें",
-    "resolveFailed": "SOS अलर्ट का समाधान करने में असमर्थ"
+    "resolveFailed": "SOS अलर्ट का समाधान करने में असमर्थ",
+    "callContact": "कॉल करें",
+    "whatsappContact": "व्हाट्सएप",
+    "smsContact": "एसएमएस",
+    "testMessageButton": "परीक्षण अलर्ट भेजें",
+    "testCallButton": "कॉल करें",
+    "callingContact": "कॉल की जा रही है...",
+    "sendingAlert": "भेजा जा रहा है...",
+    "messageSentSuccess": "{name} को {channel} द्वारा अलर्ट भेजा गया",
+    "messageSendFailed": "संदेश भेजने में विफल: {error}",
+    "callInitiatedSuccess": "{name} को कॉल प्रारंभ किया गया",
+    "callInitiateFailed": "कॉल प्रारंभ करने में विफल: {error}"
   },
   "notifications": {
     "inboxTitle": "सूचनाएं",
@@ -379,6 +390,10 @@
     "role_doctor": "डॉक्टर",
     "role_neighbour": "पड़ोसी",
     "signOut": "लॉग आउट करें",
-    "confirmSignOut": "क्या आप वाकई बुजुर्ग दृश्य से बाहर निकलना चाहते हैं?"
+    "confirmSignOut": "क्या आप वाकई बुजुर्ग दृश्य से बाहर निकलना चाहते हैं?",
+    "whatsapp": "व्हाट्सएप",
+    "sms": "एसएमएस",
+    "sosCallPrimary": "मदद के लिए कॉल करें",
+    "sosWhatsappPrimary": "व्हाट्सएप SOS"
   }
 }

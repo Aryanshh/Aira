@@ -46,6 +46,18 @@ MESSAGE_TEMPLATES: Dict[str, Dict[str, str]] = {
         "en": "No internet. Please call now.",
         "hi": "इंटरनेट नहीं है। कृपया अभी फ़ोन करें।",
     },
+    "sos.test": {
+        "en": "AIRA Care Test: Verified test alert for {elder}. Communication channels (Call & Msg) are working properly.",
+        "hi": "AIRA Care टेस्ट: {elder} के लिए सत्यापित टेस्ट अलर्ट। कॉल और मैसेज प्रणाली सक्रिय है।",
+    },
+    "sos.call": {
+        "en": "Emergency alert from AIRA Care. Your loved one {elder} has requested assistance. Please check the AIRA app or contact them immediately.",
+        "hi": "AIRA Care से आपातकालीन सूचना। आपके प्रियजन {elder} ने सहायता का अनुरोध किया है। कृपया तुरंत संपर्क करें।",
+    },
+    "sos.checkin": {
+        "en": "AIRA Care Message: Wellness update for {elder}. Please check the app for medicines & status.",
+        "hi": "AIRA Care संदेश: {elder} के लिए स्वास्थ्य अपडेट। दवाओं और स्थिति के लिए ऐप देखें।",
+    },
 }
 
 

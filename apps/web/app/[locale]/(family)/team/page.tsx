@@ -331,7 +331,11 @@ export default function CareTeamPage() {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-text-secondary mt-0.5 truncate">{member.email}</p>
+                <p className="text-xs text-text-secondary mt-0.5 truncate">
+                  <a href={`mailto:${member.email}`} className="hover:text-primary hover:underline">
+                    {member.email}
+                  </a>
+                </p>
               </div>
             </div>
 

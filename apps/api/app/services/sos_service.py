@@ -29,6 +29,8 @@ from app.schemas.sos import (
     SosAttemptResponse,
     SosEventResponse,
 )
+from app.services.templates import render_template
+from app.services.notification_service import NotificationService
 
 
 class SosService:
@@ -552,3 +554,114 @@ class SosService:
             handled_by=event.handled_by,
             attempts=[],
         )
+
+    async def send_contact_message(
+        self,
+        elder_id: uuid.UUID,
+        contact_id: uuid.UUID,
+        user: User,
+        channel: str = "sms",
+        custom_text: Optional[str] = None,
+    ) -> dict:
+        """Send an instant message (SMS/WhatsApp) to an emergency contact."""
+        await self._require_care_link(elder_id, user)
+
+        stmt = select(Contact).where(Contact.id == contact_id, Contact.elder_id == elder_id)
+        contact = (await self.db.execute(stmt)).scalar_one_or_none()
+        if not contact:
+            raise NotFoundError(detail="Contact not found.")
+
+        elder_stmt = select(Elder).where(Elder.id == elder_id)
+        elder = (await self.db.execute(elder_stmt)).scalar_one_or_none()
+        elder_name = elder.preferred_name or elder.full_name if elder else "Elder"
+
+        recipient = contact.phone_e164
+        if channel == "whatsapp" and contact.whatsapp_e164:
+            recipient = contact.whatsapp_e164
+
+        template_key = "sos.test" if not custom_text else "sos.checkin"
+        params = {"elder": elder_name, "time": utc_now().strftime("%H:%M")}
+
+        notif_svc = NotificationService(self.db)
+        provider_id = await notif_svc._dispatch_to_provider(channel, recipient, template_key, params)
+
+        # Record outbox entry for audit history
+        outbox = Outbox(
+            channel=channel,
+            recipient=recipient,
+            template_key=template_key,
+            params=params,
+            status=DeliveryStatus.SENT,
+            provider_message_id=provider_id,
+            attempts=1,
+            dedupe_key=f"manual_{contact.id}_{channel}_{uuid.uuid4().hex[:8]}",
+        )
+        self.db.add(outbox)
+
+        # Audit
+        audit = AuditEvent(
+            elder_id=elder_id,
+            actor_type="user",
+            actor_id=user.id,
+            action="contact.message_sent",
+            entity="contact",
+            entity_id=contact.id,
+            meta={"channel": channel, "recipient": recipient, "provider_message_id": provider_id},
+        )
+        self.db.add(audit)
+        await self.db.flush()
+
+        body = render_template(template_key, language=user.preferred_language or "en", params=params)
+        return {
+            "status": "sent",
+            "channel": channel,
+            "recipient": recipient,
+            "contact_name": contact.full_name,
+            "provider_message_id": provider_id,
+            "body": body,
+        }
+
+    async def initiate_contact_call(
+        self,
+        elder_id: uuid.UUID,
+        contact_id: uuid.UUID,
+        user: User,
+    ) -> dict:
+        """Initiate an outbound voice call to an emergency contact."""
+        await self._require_care_link(elder_id, user)
+
+        stmt = select(Contact).where(Contact.id == contact_id, Contact.elder_id == elder_id)
+        contact = (await self.db.execute(stmt)).scalar_one_or_none()
+        if not contact:
+            raise NotFoundError(detail="Contact not found.")
+
+        elder_stmt = select(Elder).where(Elder.id == elder_id)
+        elder = (await self.db.execute(elder_stmt)).scalar_one_or_none()
+        elder_name = elder.preferred_name or elder.full_name if elder else "Elder"
+
+        params = {"elder": elder_name, "time": utc_now().strftime("%H:%M")}
+        notif_svc = NotificationService(self.db)
+        provider_call_id = await notif_svc._dispatch_to_provider("call", contact.phone_e164, "sos.call", params)
+
+        # Audit
+        audit = AuditEvent(
+            elder_id=elder_id,
+            actor_type="user",
+            actor_id=user.id,
+            action="contact.call_initiated",
+            entity="contact",
+            entity_id=contact.id,
+            meta={"channel": "voice", "recipient": contact.phone_e164, "provider_call_id": provider_call_id},
+        )
+        self.db.add(audit)
+        await self.db.flush()
+
+        return {
+            "status": "initiated",
+            "channel": "voice",
+            "recipient": contact.phone_e164,
+            "contact_name": contact.full_name,
+            "provider_call_id": provider_call_id,
+            "dial_url": f"tel:{contact.phone_e164}",
+            "message": f"Voice call initiated to {contact.full_name} ({contact.phone_e164})",
+        }
