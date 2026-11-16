@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { Heart } from "lucide-react";
+import { AiraLogo } from "@/components/aira-logo";
 
 export default function SplashScreenPage() {
   const router = useRouter();
@@ -49,15 +49,13 @@ export default function SplashScreenPage() {
 
       {/* Main Centered Content */}
       <div className="relative z-10 flex flex-col items-center text-center max-w-sm mx-auto px-4 animate-in fade-in zoom-in-95 duration-700">
-        {/* Animated Brand Emblem */}
+        {/* Animated Brand Emblem ('A' + Heart + Listening Pulse) */}
         <div className="relative mb-6">
           {/* Subtle warm halo */}
           <div className="absolute inset-0 rounded-[36px] bg-primary/25 blur-xl animate-pulse" />
 
           {/* Central Logo Box */}
-          <div className="relative w-28 h-28 sm:w-32 sm:h-32 rounded-[32px] bg-gradient-to-br from-primary via-primary to-[#983823] text-white flex items-center justify-center shadow-glow animate-heartbeat">
-            <Heart className="w-14 h-14 sm:w-16 sm:h-16 fill-current text-white drop-shadow-sm" />
-          </div>
+          <AiraLogo size="xl" animateHeartbeat={true} className="relative z-10 shadow-glow" />
         </div>
 
         {/* Brand Name */}

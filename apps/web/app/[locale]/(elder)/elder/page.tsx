@@ -21,6 +21,7 @@ import {
   Volume2,
   WifiOff,
 } from "lucide-react";
+import { AiraLogo } from "@/components/aira-logo";
 
 interface ElderProfile {
   id: string;
@@ -503,9 +504,7 @@ export default function ElderSimpleViewPage() {
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           {/* Brand & Greeting */}
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-primary shadow-xs shrink-0">
-              <Heart className="w-6 h-6 sm:w-7 sm:h-7 fill-current" />
-            </div>
+            <AiraLogo size="md" className="shadow-xs shrink-0" />
             <div className="min-w-0">
               <h1 className="text-base sm:text-xl font-black tracking-tight text-stone-900 truncate">
                 {t("greeting")},{" "}

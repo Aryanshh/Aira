@@ -11,6 +11,7 @@ import { ElderSwitcher } from "@/components/elder-switcher";
 import { LanguageToggle } from "@/components/language-toggle";
 import { NotificationInbox } from "@/components/notification-inbox";
 import { SosLiveBanner } from "@/components/sos-live-banner";
+import { AiraLogo } from "@/components/aira-logo";
 
 export default function FamilyLayout({ children }: { children: React.ReactNode }) {
   const t = useTranslations("nav");
@@ -44,9 +45,7 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
             {/* Left: Brand + Elder Switcher */}
             <div className="flex items-center gap-2 sm:gap-6 min-w-0">
               <Link href={`/${locale}/status`} className="flex items-center gap-2 text-primary group shrink-0">
-                <div className="w-9 h-9 rounded-full bg-primary-soft flex items-center justify-center text-primary group-hover:scale-105 transition-transform shadow-2xs">
-                  <Heart className="w-5 h-5 fill-current" />
-                </div>
+                <AiraLogo size="sm" className="group-hover:scale-105 transition-transform shadow-xs" />
                 <span className="font-bold text-lg text-text-primary hidden sm:inline tracking-tight">
                   AIRA Care
                 </span>

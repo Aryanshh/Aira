@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { LanguageToggle } from "@/components/language-toggle";
+import { AiraLogo } from "@/components/aira-logo";
 
 export default function RegisterPage() {
   const t = useTranslations("auth");
@@ -85,10 +86,8 @@ export default function RegisterPage() {
     <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
       {/* Top Bar with Language Toggle */}
       <header className="w-full max-w-md flex justify-between items-center mb-6">
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 rounded-full bg-primary-soft flex items-center justify-center text-primary">
-            <Heart className="w-6 h-6 fill-current" />
-          </div>
+        <div className="flex items-center gap-3">
+          <AiraLogo size="md" className="shadow-xs" />
           <div>
             <h1 className="font-extrabold text-xl text-primary leading-tight">AIRA</h1>
             <p className="text-xs text-text-muted">{tCommon("tagline")}</p>
