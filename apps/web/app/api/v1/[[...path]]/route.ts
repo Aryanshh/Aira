@@ -113,7 +113,7 @@ const mockContacts = [
   },
 ];
 
-const mockMedicines = [
+let mockMedicines = [
   {
     id: "med-001",
     elder_id: "e1d00000-0000-0000-0000-000000000001",
@@ -125,15 +125,21 @@ const mockMedicines = [
     instructions: "After breakfast with warm water",
     color_tag: "#10B981",
     as_needed: false,
-    active: true,
-    current_stock: 45,
-    refill_alert_threshold: 7,
-    schedules: [
-      {
-        frequency: "daily",
-        times: ["08:00"],
-      },
-    ],
+    status: "active",
+    stock_quantity: 45,
+    refill_threshold_days: 7,
+    days_remaining: 15,
+    active_schedule: {
+      frequency: "daily",
+      interval_n: 1,
+      days_of_week: [1, 2, 3, 4, 5, 6, 7],
+      days_of_month: null,
+      times_of_day: ["08:00"],
+      start_date: "2026-11-01",
+      end_date: null,
+      effective_from: "2026-11-01",
+      effective_to: null,
+    },
   },
   {
     id: "med-002",
@@ -146,15 +152,21 @@ const mockMedicines = [
     instructions: "After lunch",
     color_tag: "#3B82F6",
     as_needed: false,
-    active: true,
-    current_stock: 30,
-    refill_alert_threshold: 7,
-    schedules: [
-      {
-        frequency: "daily",
-        times: ["14:00"],
-      },
-    ],
+    status: "active",
+    stock_quantity: 30,
+    refill_threshold_days: 7,
+    days_remaining: 10,
+    active_schedule: {
+      frequency: "daily",
+      interval_n: 1,
+      days_of_week: [1, 2, 3, 4, 5, 6, 7],
+      days_of_month: null,
+      times_of_day: ["14:00"],
+      start_date: "2026-11-01",
+      end_date: null,
+      effective_from: "2026-11-01",
+      effective_to: null,
+    },
   },
   {
     id: "med-003",
@@ -167,15 +179,21 @@ const mockMedicines = [
     instructions: "Before sleeping",
     color_tag: "#8B5CF6",
     as_needed: false,
-    active: true,
-    current_stock: 28,
-    refill_alert_threshold: 7,
-    schedules: [
-      {
-        frequency: "daily",
-        times: ["20:30"],
-      },
-    ],
+    status: "active",
+    stock_quantity: 28,
+    refill_threshold_days: 7,
+    days_remaining: 9,
+    active_schedule: {
+      frequency: "daily",
+      interval_n: 1,
+      days_of_week: [1, 2, 3, 4, 5, 6, 7],
+      days_of_month: null,
+      times_of_day: ["20:30"],
+      start_date: "2026-11-01",
+      end_date: null,
+      effective_from: "2026-11-01",
+      effective_to: null,
+    },
   },
 ];
 
@@ -358,19 +376,38 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
 
   // ELDERS: Create
   if (method === "POST" && path === "elders") {
-    const newElder = {
-      ...mockElder,
-      id: `e1d-${Date.now()}`,
-      full_name: body.full_name || "Elder",
-      preferred_name: body.preferred_name || null,
-      language: body.language || "hi",
-    };
-    return NextResponse.json(newElder, { status: 201 });
+    const newId = `e1d-${Date.now()}`;
+    const code = "AIRA-" + Math.random().toString(36).substring(2, 6).toUpperCase();
+    const pin = String(Math.floor(1000 + Math.random() * 9000));
+    return NextResponse.json(
+      {
+        id: newId,
+        elder_id: newId,
+        full_name: body.full_name || "Elder",
+        preferred_name: body.preferred_name || null,
+        language: body.language || "hi",
+        timezone: body.timezone || "Asia/Kolkata",
+        day_close_time: body.day_close_time || "23:59",
+        text_size: body.text_size ?? 1,
+        is_owner: true,
+        can_manage_medicines: true,
+        access_code: code,
+        pin,
+        qr_token: `qrt_${Date.now()}`,
+        qr_url: `https://aira-live.vercel.app/en/qr-login?token=qrt_${Date.now()}`,
+      },
+      { status: 201 }
+    );
   }
 
   // ELDERS: Me Profile (Elder View)
   if (method === "GET" && path === "elders/me/profile") {
     return NextResponse.json(mockElder);
+  }
+
+  // ELDERS: Me Preferences
+  if ((method === "PATCH" || method === "PUT" || method === "GET") && path === "elders/me/preferences") {
+    return NextResponse.json({ success: true, text_size: body.text_size ?? 1 });
   }
 
   // DOSES: Me Doses (Elder View)
@@ -434,6 +471,87 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
     });
   }
 
+  // MEDICINES: Duplicate check
+  if (method === "GET" && path.includes("medicines/check-duplicate")) {
+    return NextResponse.json({ is_duplicate: false, warning: null });
+  }
+
+  // MEDICINES: Stock events
+  if (
+    method === "GET" &&
+    pathSegments[0] === "elders" &&
+    pathSegments[2] === "medicines" &&
+    pathSegments[4] === "stock-events"
+  ) {
+    const medId = pathSegments[3];
+    return NextResponse.json([
+      {
+        id: "evt-001",
+        medicine_id: medId,
+        delta: 30,
+        reason: "refill",
+        note: "Pharmacy refill",
+        created_by: "Caregiver",
+        created_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+      },
+      {
+        id: "evt-002",
+        medicine_id: medId,
+        delta: -1,
+        reason: "dose_taken",
+        note: "Routine morning dose",
+        created_by: "Elder",
+        created_at: new Date(Date.now() - 86400000).toISOString(),
+      },
+    ]);
+  }
+
+  // MEDICINES: Actions (pause / resume / end / adjust-stock / refill)
+  if (
+    method === "POST" &&
+    pathSegments[0] === "elders" &&
+    pathSegments[2] === "medicines" &&
+    pathSegments.length >= 5
+  ) {
+    const medId = pathSegments[3];
+    const action = pathSegments[4];
+    const med = mockMedicines.find((m) => m.id === medId);
+
+    if (action === "pause" && med) {
+      med.status = "paused";
+      return NextResponse.json({ success: true, status: "paused" });
+    }
+    if (action === "resume" && med) {
+      med.status = "active";
+      return NextResponse.json({ success: true, status: "active" });
+    }
+    if (action === "end" && med) {
+      med.status = "ended";
+      return NextResponse.json({ success: true, status: "ended" });
+    }
+    if (action === "adjust-stock" && med) {
+      med.stock_quantity = parseFloat(body.quantity || med.stock_quantity);
+      return NextResponse.json({ success: true, new_stock: med.stock_quantity });
+    }
+    if (action === "refill" && med) {
+      med.stock_quantity += parseFloat(body.quantity || 30);
+      return NextResponse.json({ success: true, new_stock: med.stock_quantity });
+    }
+    return NextResponse.json({ success: true });
+  }
+
+  // MEDICINES: Single Medicine
+  if (
+    method === "GET" &&
+    pathSegments[0] === "elders" &&
+    pathSegments[2] === "medicines" &&
+    pathSegments.length === 4
+  ) {
+    const medId = pathSegments[3];
+    const med = mockMedicines.find((m) => m.id === medId) || mockMedicines[0];
+    return NextResponse.json(med);
+  }
+
   // MEDICINES: List
   if (method === "GET" && pathSegments[0] === "elders" && pathSegments[2] === "medicines") {
     return NextResponse.json(mockMedicines);
@@ -444,12 +562,31 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
     const newMed = {
       id: `med-${Date.now()}`,
       elder_id: mockElder.id,
-      ...body,
-      active: true,
-      current_stock: body.initial_stock || 30,
-      refill_alert_threshold: body.refill_alert_threshold || 7,
-      schedules: [{ frequency: body.frequency || "daily", times: body.times || ["08:00"] }],
+      name: body.name || "Medicine",
+      strength: body.strength || null,
+      form: body.form || "tablet",
+      dose_amount: parseFloat(body.dose_amount || "1.0"),
+      dose_unit: body.dose_unit || "tablet",
+      instructions: body.instructions || null,
+      color_tag: body.color_tag || "#10B981",
+      as_needed: Boolean(body.as_needed),
+      status: "active" as const,
+      stock_quantity: parseFloat(body.initial_stock || body.stock_quantity || "30.0"),
+      refill_threshold_days: parseInt(body.refill_threshold || body.refill_threshold_days || "5", 10),
+      days_remaining: 15,
+      active_schedule: {
+        frequency: body.frequency || "daily",
+        interval_n: body.interval_n || 1,
+        days_of_week: body.days_of_week || [1, 2, 3, 4, 5, 6, 7],
+        days_of_month: body.days_of_month || null,
+        times_of_day: body.times || body.times_of_day || ["08:00"],
+        start_date: body.start_date || new Date().toISOString().split("T")[0],
+        end_date: body.end_date || null,
+        effective_from: body.effective_from || new Date().toISOString().split("T")[0],
+        effective_to: null,
+      },
     };
+    mockMedicines.push(newMed);
     return NextResponse.json(newMed, { status: 201 });
   }
 
@@ -457,49 +594,100 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
   if (method === "GET" && path.includes("/status/day")) {
     const takenCount = mockDoses.filter((d) => d.status === "taken").length;
     const totalCount = mockDoses.length;
+    const adherencePct = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 100;
+    const state = (totalCount === 0 ? "no_doses" : takenCount >= totalCount ? "all_taken" : "in_progress") as
+      | "all_taken"
+      | "in_progress"
+      | "has_missed"
+      | "no_doses";
     return NextResponse.json({
+      elder_id: mockElder.id,
       date: new Date().toISOString().split("T")[0],
-      total_doses: totalCount,
-      taken_doses: takenCount,
-      missed_doses: 0,
-      remaining_doses: totalCount - takenCount,
-      adherence_pct: totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 100,
+      total_scheduled: totalCount,
+      taken_count: takenCount,
+      missed_count: 0,
+      skipped_count: 0,
+      adherence_pct: adherencePct,
+      state,
+      missed_medicine_names: [],
     });
   }
 
   // STATUS: Week
   if (method === "GET" && path.includes("/status/week")) {
+    const todayStr = new Date().toISOString().split("T")[0];
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(Date.now() - (6 - i) * 86400000);
+      const dateStr = d.toISOString().split("T")[0];
+      const isToday = dateStr === todayStr;
+      const taken = isToday ? mockDoses.filter((d) => d.status === "taken").length : 3;
+      const total = 3;
+      return {
+        elder_id: mockElder.id,
+        date: dateStr,
+        total_scheduled: total,
+        taken_count: taken,
+        missed_count: 0,
+        skipped_count: 0,
+        adherence_pct: Math.round((taken / total) * 100),
+        state: (taken >= total ? "all_taken" : "in_progress") as "all_taken" | "in_progress",
+        missed_medicine_names: [],
+      };
+    });
     return NextResponse.json({
-      week_start: new Date(Date.now() - 6 * 86400000).toISOString().split("T")[0],
-      week_end: new Date().toISOString().split("T")[0],
+      elder_id: mockElder.id,
+      week_start: days[0].date,
+      week_end: days[6].date,
+      overall_adherence_pct: 100,
       total_scheduled: 21,
       total_taken: 21,
       total_missed: 0,
-      weekly_adherence_pct: 100,
+      days,
       missed_highlights: [],
-      daily_breakdown: [
-        { date: "2026-11-11", taken: 3, total: 3, pct: 100 },
-        { date: "2026-11-12", taken: 3, total: 3, pct: 100 },
-        { date: "2026-11-13", taken: 3, total: 3, pct: 100 },
-        { date: "2026-11-14", taken: 3, total: 3, pct: 100 },
-        { date: "2026-11-15", taken: 3, total: 3, pct: 100 },
-        { date: "2026-11-16", taken: 3, total: 3, pct: 100 },
-        { date: "2026-11-17", taken: 3, total: 3, pct: 100 },
-      ],
     });
   }
 
   // STATUS: Month
   if (method === "GET" && path.includes("/status/month")) {
+    const daysInMonth = 30;
+    const days = Array.from({ length: daysInMonth }, (_, i) => {
+      const dayNum = String(i + 1).padStart(2, "0");
+      const dateStr = `2026-11-${dayNum}`;
+      return {
+        elder_id: mockElder.id,
+        date: dateStr,
+        total_scheduled: 3,
+        taken_count: 3,
+        missed_count: 0,
+        skipped_count: 0,
+        adherence_pct: 100,
+        state: "all_taken" as const,
+        missed_medicine_names: [],
+      };
+    });
     return NextResponse.json({
+      elder_id: mockElder.id,
       year: 2026,
       month: 11,
-      total_scheduled: 51,
-      total_taken: 51,
+      overall_adherence_pct: 100,
+      total_scheduled: daysInMonth * 3,
+      total_taken: daysInMonth * 3,
       total_missed: 0,
-      monthly_adherence_pct: 100,
-      daily_data: {},
+      days,
     });
+  }
+
+  // TEAM: Invites
+  if (method === "POST" && pathSegments[0] === "elders" && pathSegments[2] === "invites") {
+    return NextResponse.json({
+      invite_url: "https://aira-live.vercel.app/en/login?invite=inv_demo_welcome",
+      role: body.role || "family",
+    });
+  }
+
+  // TEAM: Remove Member
+  if (method === "DELETE" && pathSegments[0] === "elders" && pathSegments[2] === "team") {
+    return NextResponse.json({ success: true });
   }
 
   // TEAM: Members
@@ -515,6 +703,11 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
         joined_at: "2026-11-01T00:00:00Z",
       },
     ]);
+  }
+
+  // SOS: Active Status
+  if (method === "GET" && path.includes("sos/active")) {
+    return NextResponse.json({ status: "inactive" });
   }
 
   // SOS: Trigger & Active
@@ -537,27 +730,57 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
     );
   }
 
+  // SOS: Resolve
+  if (method === "POST" && path.includes("sos/") && path.endsWith("/resolve")) {
+    return NextResponse.json({ success: true, status: "handled" });
+  }
+
   // SOS: History
   if (method === "GET" && pathSegments[0] === "elders" && pathSegments[2] === "sos") {
     return NextResponse.json([]);
+  }
+
+  // NOTIFICATIONS: Inbox
+  if (method === "GET" && (path === "notifications" || path.startsWith("notifications?"))) {
+    return NextResponse.json({
+      notifications: [],
+      unread_count: 0,
+    });
+  }
+
+  // NOTIFICATIONS: Actions
+  if (method === "POST" && path.startsWith("notifications/")) {
+    return NextResponse.json({ success: true });
   }
 
   // NOTIFICATION PREFERENCES
   if (path === "notification-preferences") {
     if (method === "GET") {
       return NextResponse.json({
-        push_enabled: true,
-        channels: {
-          sos: ["in_app", "push", "sms", "whatsapp"],
-          missed: ["in_app", "push"],
-          refill: ["in_app", "push"],
-          system: ["in_app"],
-        },
-        quiet_hours: {
-          enabled: true,
-          start: "22:00",
-          end: "07:00",
-        },
+        preferences: [
+          { category: "sos", channel: "in_app", enabled: true },
+          { category: "sos", channel: "push", enabled: true },
+          { category: "sos", channel: "sms", enabled: true },
+          { category: "sos", channel: "whatsapp", enabled: true },
+          { category: "sos", channel: "email", enabled: false },
+          { category: "missed", channel: "in_app", enabled: true },
+          { category: "missed", channel: "push", enabled: true },
+          { category: "missed", channel: "sms", enabled: false },
+          { category: "missed", channel: "whatsapp", enabled: false },
+          { category: "missed", channel: "email", enabled: false },
+          { category: "refill", channel: "in_app", enabled: true },
+          { category: "refill", channel: "push", enabled: true },
+          { category: "refill", channel: "sms", enabled: false },
+          { category: "refill", channel: "whatsapp", enabled: false },
+          { category: "refill", channel: "email", enabled: false },
+          { category: "system", channel: "in_app", enabled: true },
+          { category: "system", channel: "push", enabled: false },
+          { category: "system", channel: "sms", enabled: false },
+          { category: "system", channel: "whatsapp", enabled: false },
+          { category: "system", channel: "email", enabled: false },
+        ],
+        quiet_start: "22:00",
+        quiet_end: "07:00",
       });
     }
     return NextResponse.json({ success: true });

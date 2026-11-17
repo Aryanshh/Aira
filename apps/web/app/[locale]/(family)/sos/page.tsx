@@ -514,7 +514,7 @@ export default function SosManagementPage() {
                           </span>
                         )}
                         <span className="text-text-muted truncate">
-                          Channels: {contact.preferred_channels.join(", ")}
+                          Channels: {(contact.preferred_channels || []).join(", ")}
                         </span>
                       </div>
 

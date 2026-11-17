@@ -122,7 +122,7 @@ export default function MedicinesListPage() {
     if (med.as_needed) return t("asNeededLabel");
     if (!med.active_schedule) return t("noSchedule");
 
-    const times = med.active_schedule.times_of_day.join(", ");
+    const times = (med.active_schedule.times_of_day || []).join(", ") || "08:00";
     if (med.active_schedule.frequency === "daily") {
       return t("scheduleDaily", { times });
     }
