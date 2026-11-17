@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import {
   AlertCircle,
+  Bell,
   Calendar,
   Clock,
   Edit2,
@@ -15,6 +16,7 @@ import {
   Plus,
   Square,
   StopCircle,
+  Volume2,
 } from "lucide-react";
 
 import { useElder } from "@/components/elder-context";
@@ -99,6 +101,22 @@ export default function MedicinesListPage() {
     } catch {
       // Ignored
     }
+  };
+
+  const handleTestAlarm = (med: Medicine) => {
+    const scheduledTime = med.active_schedule?.times_of_day?.[0] || "08:00";
+    window.dispatchEvent(
+      new CustomEvent("aira:trigger-medicine-alarm", {
+        detail: {
+          id: med.id,
+          medicine_name: med.name,
+          dose_label: `${med.dose_amount} ${med.dose_unit}`,
+          instructions: med.instructions,
+          scheduled_time: scheduledTime,
+          isTest: true,
+        },
+      })
+    );
   };
 
   const handleEndMedicine = async (medId: string) => {
@@ -291,6 +309,26 @@ export default function MedicinesListPage() {
                     <span>{formatScheduleText(med)}</span>
                   </p>
 
+                  {/* Scheduled Alarms Pill Badges */}
+                  {med.status === "active" && !med.as_needed && med.active_schedule?.times_of_day?.length ? (
+                    <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                      <span className="text-[11px] font-bold text-text-secondary flex items-center gap-1">
+                        <Bell className="w-3.5 h-3.5 text-primary" />
+                        <span>{t("remindersLabel")}:</span>
+                      </span>
+                      {med.active_schedule.times_of_day.map((time) => (
+                        <span
+                          key={time}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-primary-soft text-primary border border-primary/20"
+                        >
+                          <Clock className="w-2.5 h-2.5" />
+                          <span>{time}</span>
+                          <span className="text-[9px] uppercase tracking-wider text-primary/80 font-black">• {t("alarmActiveBadge")}</span>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
                   {med.instructions && (
                     <p className="text-xs text-text-secondary italic">
                       "{med.instructions}"
@@ -349,6 +387,17 @@ export default function MedicinesListPage() {
                         title={t("endTooltip")}
                       >
                         <StopCircle className="w-4 h-4" />
+                      </button>
+
+                      {/* Test Alarm Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleTestAlarm(med)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-primary-soft text-primary hover:bg-primary/20 transition-all active:scale-95 border border-primary/25 ml-1"
+                        title={t("testAlarmButton")}
+                      >
+                        <Volume2 className="w-3.5 h-3.5 animate-pulse text-primary shrink-0" />
+                        <span className="hidden sm:inline">{t("testAlarmButton")}</span>
                       </button>
                     </div>
                   )}

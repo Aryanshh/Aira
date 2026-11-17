@@ -24,7 +24,7 @@ interface ElderContextType {
   isLoading: boolean;
 }
 
-const ElderContext = React.createContext<ElderContextType | undefined>(undefined);
+export const ElderContext = React.createContext<ElderContextType | undefined>(undefined);
 
 const STORAGE_KEY = "aira_selected_elder_id";
 

@@ -194,7 +194,10 @@
     "scheduleVersioningNoteDesc": "ऐतिहासिक सटीकता के लिए पुरानी खुराकें सुरक्षित रहेंगी। प्रभावी तारीख से एक नया शेड्यूल संस्करण शुरू होगा।",
     "effectiveFromLabel": "प्रभावी तारीख",
     "effectiveFromHelp": "यह नया शेड्यूल संस्करण कब से प्रभावी होगा (डिफ़ॉल्ट रूप से कल से)।",
-    "viewStockHistoryTooltip": "स्टॉक इतिहास देखने और रिफिल दर्ज करने के लिए क्लिक करें"
+    "viewStockHistoryTooltip": "स्टॉक इतिहास देखने और रिफिल दर्ज करने के लिए क्लिक करें",
+    "testAlarmButton": "अलार्म टेस्ट करें",
+    "alarmActiveBadge": "अलार्म सक्रिय",
+    "remindersLabel": "शेड्यूल अलार्म"
   },
   "stock": {
     "refillModalTitle": "{name} के लिए रिफिल दर्ज करें",
@@ -319,7 +322,10 @@
     "messageSentSuccess": "{name} को {channel} द्वारा अलर्ट भेजा गया",
     "messageSendFailed": "संदेश भेजने में विफल: {error}",
     "callInitiatedSuccess": "{name} को कॉल प्रारंभ किया गया",
-    "callInitiateFailed": "कॉल प्रारंभ करने में विफल: {error}"
+    "callInitiateFailed": "कॉल प्रारंभ करने में विफल: {error}",
+    "testSirenButton": "सायरन टेस्ट करें",
+    "stopSirenButton": "सायरन बंद करें",
+    "sirenPlaying": "सायरन बज रहा है"
   },
   "notifications": {
     "inboxTitle": "सूचनाएं",

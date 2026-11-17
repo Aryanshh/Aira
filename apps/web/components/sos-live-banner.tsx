@@ -2,9 +2,15 @@
 
 import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { AlertCircle, CheckCircle2, Clock, Volume2, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Volume2, VolumeX, X } from "lucide-react";
 
 import { useElder } from "@/components/elder-context";
+import {
+  isSosSirenPlaying,
+  playSosPulse,
+  startContinuousSosSiren,
+  stopSosSiren,
+} from "@/lib/audio-alerts";
 
 interface SosAttempt {
   id: string;
@@ -40,33 +46,23 @@ export function SosLiveBanner() {
   const [showResolveModal, setShowResolveModal] = React.useState(false);
   const [resolveNote, setResolveNote] = React.useState("");
   const [resolveError, setResolveError] = React.useState<string | null>(null);
+  const [isSirenMuted, setIsSirenMuted] = React.useState(false);
   const prevSosIdRef = React.useRef<string | null>(null);
 
-  // Sound alert using Web Audio API
-  const playAlertChime = React.useCallback(() => {
-    try {
-      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!AudioContextClass) return;
-      const ctx = new AudioContextClass();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      osc.frequency.setValueAtTime(880.0, ctx.currentTime + 0.15); // A5
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.4);
-    } catch {
-      // Audio context might be restricted before user interaction
+  const handleToggleSiren = () => {
+    if (isSirenMuted || !isSosSirenPlaying()) {
+      startContinuousSosSiren();
+      setIsSirenMuted(false);
+    } else {
+      stopSosSiren();
+      setIsSirenMuted(true);
     }
-  }, []);
+  };
 
   const fetchActiveSos = React.useCallback(async () => {
     if (!selectedElder) {
       setActiveSos(null);
+      stopSosSiren();
       return;
     }
     try {
@@ -75,25 +71,30 @@ export function SosLiveBanner() {
         const data = await res.json();
         if (data && data.status === "active") {
           setActiveSos(data);
-          // Play chime if this is a newly arrived active SOS
+          // Sound continuous emergency siren if this is a newly arrived active SOS
           if (prevSosIdRef.current !== data.id) {
             prevSosIdRef.current = data.id;
-            playAlertChime();
+            setIsSirenMuted(false);
+            startContinuousSosSiren();
           }
         } else {
           setActiveSos(null);
           prevSosIdRef.current = null;
+          stopSosSiren();
         }
       }
     } catch {
       // Ignore background network transient
     }
-  }, [selectedElder, playAlertChime]);
+  }, [selectedElder]);
 
   React.useEffect(() => {
     fetchActiveSos();
     const interval = setInterval(fetchActiveSos, 8000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      stopSosSiren();
+    };
   }, [fetchActiveSos]);
 
   const handleResolve = async (e: React.FormEvent) => {
@@ -113,6 +114,7 @@ export function SosLiveBanner() {
         throw new Error(t("resolveFailed"));
       }
 
+      stopSosSiren();
       setShowResolveModal(false);
       setResolveNote("");
       setActiveSos(null);
@@ -165,12 +167,26 @@ export function SosLiveBanner() {
           <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
             <button
               type="button"
-              onClick={playAlertChime}
-              title={t("soundTestTooltip")}
-              aria-label={t("soundTestTooltip")}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+              onClick={handleToggleSiren}
+              title={isSirenMuted ? t("testSirenButton") : t("stopSirenButton")}
+              aria-label={isSirenMuted ? t("testSirenButton") : t("stopSirenButton")}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
+                !isSirenMuted
+                  ? "bg-white text-emergency animate-pulse shadow-xs"
+                  : "bg-white/15 text-white hover:bg-white/25"
+              }`}
             >
-              <Volume2 className="w-5 h-5" />
+              {!isSirenMuted ? (
+                <>
+                  <Volume2 className="w-4 h-4 animate-bounce" />
+                  <span>{locale === "hi" ? "सायरन बंद करें" : "Mute Siren"}</span>
+                </>
+              ) : (
+                <>
+                  <VolumeX className="w-4 h-4" />
+                  <span>{locale === "hi" ? "सायरन बजाएं" : "Play Siren"}</span>
+                </>
+              )}
             </button>
             <button
               type="button"

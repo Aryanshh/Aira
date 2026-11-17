@@ -410,8 +410,11 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
     return NextResponse.json({ success: true, text_size: body.text_size ?? 1 });
   }
 
-  // DOSES: Me Doses (Elder View)
-  if (method === "GET" && path === "elders/me/doses") {
+  // DOSES: Me Doses & Elder Doses
+  if (
+    method === "GET" &&
+    (path === "elders/me/doses" || (pathSegments[0] === "elders" && pathSegments[2] === "doses"))
+  ) {
     return NextResponse.json(mockDoses);
   }
 

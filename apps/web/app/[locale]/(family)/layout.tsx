@@ -11,6 +11,7 @@ import { ElderSwitcher } from "@/components/elder-switcher";
 import { LanguageToggle } from "@/components/language-toggle";
 import { NotificationInbox } from "@/components/notification-inbox";
 import { SosLiveBanner } from "@/components/sos-live-banner";
+import { MedicineAlarmBanner } from "@/components/medicine-alarm-banner";
 import { AiraLogo } from "@/components/aira-logo";
 
 export default function FamilyLayout({ children }: { children: React.ReactNode }) {
@@ -96,6 +97,9 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
 
         {/* Live SOS Alert Banner (SOS-3) */}
         <SosLiveBanner />
+
+        {/* Medicine Alarm Banner */}
+        <MedicineAlarmBanner />
 
         {/* Main Content Area: with safe area bottom clearance */}
         <main className="flex-1 max-w-6xl w-full mx-auto p-3.5 sm:p-6 md:p-8 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pb-8">

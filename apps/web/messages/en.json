@@ -194,7 +194,10 @@
     "scheduleVersioningNoteDesc": "Past doses remain completely untouched for historical integrity. A new schedule version will begin from the effective date.",
     "effectiveFromLabel": "Effective From Date",
     "effectiveFromHelp": "When this new schedule version starts taking effect (defaults to tomorrow).",
-    "viewStockHistoryTooltip": "Click to view stock history & record refill"
+    "viewStockHistoryTooltip": "Click to view stock history & record refill",
+    "testAlarmButton": "Test Alarm",
+    "alarmActiveBadge": "Alarm Active",
+    "remindersLabel": "Scheduled Alarms"
   },
   "stock": {
     "refillModalTitle": "Record Refill for {name}",
@@ -319,7 +322,10 @@
     "messageSentSuccess": "Alert sent to {name} via {channel}",
     "messageSendFailed": "Failed to send message: {error}",
     "callInitiatedSuccess": "Call initiated to {name}",
-    "callInitiateFailed": "Failed to initiate call: {error}"
+    "callInitiateFailed": "Failed to initiate call: {error}",
+    "testSirenButton": "Test Siren",
+    "stopSirenButton": "Stop Siren",
+    "sirenPlaying": "Siren Playing"
   },
   "notifications": {
     "inboxTitle": "Notifications",

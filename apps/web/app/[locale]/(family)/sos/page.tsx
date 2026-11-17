@@ -19,10 +19,17 @@ import {
   Trash2,
   UserCheck,
   Users,
+  Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 
 import { useElder } from "@/components/elder-context";
+import {
+  isSosSirenPlaying,
+  startContinuousSosSiren,
+  stopSosSiren,
+} from "@/lib/audio-alerts";
 
 interface Contact {
   id: string;
@@ -93,6 +100,23 @@ export default function SosManagementPage() {
   const [showTriggerModal, setShowTriggerModal] = React.useState(false);
   const [triggeringSos, setTriggeringSos] = React.useState(false);
   const [triggerError, setTriggerError] = React.useState<string | null>(null);
+  const [isTestingSiren, setIsTestingSiren] = React.useState(false);
+
+  const handleToggleSirenTest = () => {
+    if (isTestingSiren || isSosSirenPlaying()) {
+      stopSosSiren();
+      setIsTestingSiren(false);
+    } else {
+      startContinuousSosSiren();
+      setIsTestingSiren(true);
+    }
+  };
+
+  React.useEffect(() => {
+    return () => {
+      stopSosSiren();
+    };
+  }, []);
 
   const fetchContacts = React.useCallback(async () => {
     if (!selectedElder) return;
@@ -383,15 +407,41 @@ export default function SosManagementPage() {
           </p>
         </div>
 
-        {/* Trigger Test SOS button */}
-        <button
-          type="button"
-          onClick={() => setShowTriggerModal(true)}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emergency text-white font-bold text-sm shadow-xs hover:bg-red-700 transition-colors self-start sm:self-auto"
-        >
-          <ShieldAlert className="w-4 h-4" />
-          <span>{t("triggerTestSosButton")}</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          {/* Test Siren Button */}
+          <button
+            type="button"
+            onClick={handleToggleSirenTest}
+            className={`inline-flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-xl font-bold text-sm shadow-xs transition-all ${
+              isTestingSiren
+                ? "bg-red-700 text-white animate-pulse"
+                : "bg-surface border border-border text-text-primary hover:bg-surface-muted"
+            }`}
+            title={isTestingSiren ? t("stopSirenButton") : t("testSirenButton")}
+          >
+            {isTestingSiren ? (
+              <>
+                <VolumeX className="w-4 h-4 text-white" />
+                <span>{t("stopSirenButton")}</span>
+              </>
+            ) : (
+              <>
+                <Volume2 className="w-4 h-4 text-emergency" />
+                <span>{t("testSirenButton")}</span>
+              </>
+            )}
+          </button>
+
+          {/* Trigger Test SOS button */}
+          <button
+            type="button"
+            onClick={() => setShowTriggerModal(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emergency text-white font-bold text-sm shadow-xs hover:bg-red-700 transition-colors"
+          >
+            <ShieldAlert className="w-4 h-4" />
+            <span>{t("triggerTestSosButton")}</span>
+          </button>
+        </div>
       </div>
 
       {/* SECTION 1: Emergency Contacts & Escalation Order */}

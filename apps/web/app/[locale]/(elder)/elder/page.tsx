@@ -20,9 +20,17 @@ import {
   Sunrise,
   Sunset,
   Volume2,
+  VolumeX,
   WifiOff,
 } from "lucide-react";
 import { AiraLogo } from "@/components/aira-logo";
+import { MedicineAlarmBanner } from "@/components/medicine-alarm-banner";
+import {
+  isSosSirenPlaying,
+  playMedicineChime,
+  startContinuousSosSiren,
+  stopSosSiren,
+} from "@/lib/audio-alerts";
 
 interface ElderProfile {
   id: string;
@@ -263,6 +271,13 @@ export default function ElderSimpleViewPage() {
     fetchElderData();
   }, [fetchElderData]);
 
+  // Clean up sirens when navigating away
+  React.useEffect(() => {
+    return () => {
+      stopSosSiren();
+    };
+  }, []);
+
   // Undo countdown tick
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -320,7 +335,7 @@ export default function ElderSimpleViewPage() {
 
   // Mark dose as Taken (ELD-V2)
   const handleTakeDose = async (doseId: string) => {
-    playAlertChime(false);
+    playMedicineChime();
     if (navigator.vibrate) navigator.vibrate(80);
 
     // Optimistic update
@@ -424,8 +439,8 @@ export default function ElderSimpleViewPage() {
 
   const triggerSosNow = async () => {
     cancelSosHold();
-    playAlertChime(true);
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+    startContinuousSosSiren();
+    if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 600]);
 
     if (!navigator.onLine) {
       setSosOfflineAlert(true);
@@ -620,26 +635,39 @@ export default function ElderSimpleViewPage() {
               <h2 className={`font-black text-red-900 ${fontScale.title}`}>
                 {t("sosSent")}
               </h2>
-              {primaryContact && (
-                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
-                  <a
-                    href={`tel:${primaryContact.phone_e164}`}
-                    className="inline-flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl bg-emerald-600 text-white font-bold text-lg shadow-md hover:bg-emerald-700 active:scale-95 transition-all w-full sm:w-auto"
-                  >
-                    <Phone className="w-6 h-6 fill-current" />
-                    <span>{primaryContact.full_name}: {t("call")}</span>
-                  </a>
-                  <a
-                    href={`https://wa.me/${(primaryContact.whatsapp_e164 || primaryContact.phone_e164).replace(/[^\d]/g, "")}?text=${encodeURIComponent("EMERGENCY SOS: I need urgent help! Please contact me immediately.")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl bg-[#25D366] text-white font-bold text-lg shadow-md hover:bg-[#128C7E] active:scale-95 transition-all w-full sm:w-auto"
-                  >
-                    <MessageSquare className="w-6 h-6 shrink-0" />
-                    <span>{t("sosWhatsappPrimary")}</span>
-                  </a>
-                </div>
-              )}
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    stopSosSiren();
+                    setSosActive(false);
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-stone-200 text-stone-900 font-black text-base shadow-sm hover:bg-stone-300 active:scale-95 transition-all w-full sm:w-auto"
+                >
+                  <VolumeX className="w-5 h-5 text-stone-700" />
+                  <span>{locale === "hi" ? "सायरन बंद करें" : "Silence Siren"}</span>
+                </button>
+                {primaryContact && (
+                  <>
+                    <a
+                      href={`tel:${primaryContact.phone_e164}`}
+                      className="inline-flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl bg-emerald-600 text-white font-bold text-lg shadow-md hover:bg-emerald-700 active:scale-95 transition-all w-full sm:w-auto"
+                    >
+                      <Phone className="w-6 h-6 fill-current" />
+                      <span>{primaryContact.full_name}: {t("call")}</span>
+                    </a>
+                    <a
+                      href={`https://wa.me/${(primaryContact.whatsapp_e164 || primaryContact.phone_e164).replace(/[^\d]/g, "")}?text=${encodeURIComponent("EMERGENCY SOS: I need urgent help! Please contact me immediately.")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl bg-[#25D366] text-white font-bold text-lg shadow-md hover:bg-[#128C7E] active:scale-95 transition-all w-full sm:w-auto"
+                    >
+                      <MessageSquare className="w-6 h-6 shrink-0" />
+                      <span>{t("sosWhatsappPrimary")}</span>
+                    </a>
+                  </>
+                )}
+              </div>
             </div>
           ) : sosOfflineAlert ? (
             <div className="p-5 bg-amber-50 rounded-2xl border-2 border-amber-400 text-center space-y-3">
@@ -896,6 +924,9 @@ export default function ElderSimpleViewPage() {
           </div>
         )}
       </main>
+
+      {/* Medicine Alarm Banner */}
+      <MedicineAlarmBanner />
     </div>
   );
 }
