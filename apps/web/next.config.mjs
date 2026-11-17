@@ -5,8 +5,50 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "airacare.vercel.app",
+          },
+        ],
+        destination: "https://aira-live.vercel.app/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "aira-elder.vercel.app",
+          },
+        ],
+        destination: "https://aira-live.vercel.app/:path*",
+        permanent: true,
+      },
+      {
+        source: "/:path*",
+        has: [
+          {
+            type: "host",
+            value: "aira-liart.vercel.app",
+          },
+        ],
+        destination: "https://aira-live.vercel.app/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
-    const apiBase = process.env.API_BASE_URL || "http://localhost:8000";
+    const apiBase = process.env.API_BASE_URL;
+    // When running serverless on Vercel without external API_BASE_URL,
+    // do NOT rewrite to localhost:8000 so the internal App Router Route Handler runs.
+    if (!apiBase) {
+      return [];
+    }
     return [
       {
         source: "/api/v1/:path*",
