@@ -172,15 +172,15 @@ export default function StatusDashboardPage() {
   const elderName = selectedElder.preferred_name || selectedElder.full_name;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
       {/* Header & View Mode Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary tracking-tight flex items-center gap-2">
-            <Activity className="w-6 h-6 text-primary" />
+          <h1 className="text-xl sm:text-2xl font-bold text-text-primary tracking-tight flex items-center gap-2">
+            <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
             <span>{t("title", { name: elderName })}</span>
           </h1>
-          <p className="text-sm text-text-secondary mt-0.5">{t("subtitle")}</p>
+          <p className="text-xs sm:text-sm text-text-secondary mt-0.5">{t("subtitle")}</p>
         </div>
 
         {/* Day / Week / Month Pill Tabs */}
@@ -194,7 +194,7 @@ export default function StatusDashboardPage() {
               key={tab.id}
               type="button"
               onClick={() => setViewMode(tab.id as any)}
-              className={`flex-1 sm:flex-none px-4 py-2 sm:py-1.5 rounded-lg text-sm font-semibold transition-all ${
+              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 viewMode === tab.id
                   ? "bg-surface text-primary shadow-xs font-bold"
                   : "text-text-secondary hover:text-text-primary"
@@ -208,9 +208,9 @@ export default function StatusDashboardPage() {
 
       {/* Missed Medicine Highlights Callout (STA-4) */}
       {weekSummary && weekSummary.missed_highlights.length > 0 && (
-        <div className="p-4 rounded-xl bg-accent-amber/15 border border-accent-amber/30 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-accent-amber shrink-0 mt-0.5" />
-          <div className="text-sm">
+        <div className="p-3.5 sm:p-4 rounded-xl bg-accent-amber/15 border border-accent-amber/30 flex items-start gap-2.5 sm:gap-3">
+          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-accent-amber shrink-0 mt-0.5" />
+          <div className="text-xs sm:text-sm">
             <h3 className="font-bold text-text-primary">{t("missedHighlightsTitle")}</h3>
             <p className="text-text-secondary mt-0.5">
               {t("missedHighlightsDesc", {
@@ -229,12 +229,12 @@ export default function StatusDashboardPage() {
         const state = daySummary.state || (totalScheduled > 0 && takenCount >= totalScheduled ? "all_taken" : "in_progress");
 
         return (
-          <div className="space-y-6">
-            <Card className="p-4 sm:p-8 bg-surface border border-border shadow-md">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-5 sm:gap-6">
-                {/* Left: Progress Circle & Adherence */}
-                <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center sm:text-left w-full md:w-auto">
-                  <div className="relative w-36 h-36 sm:w-40 sm:h-40 shrink-0 flex items-center justify-center">
+          <div className="space-y-4 sm:space-y-6">
+            <Card className="p-3.5 sm:p-6 md:p-8 bg-surface border border-border shadow-md">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 sm:gap-6">
+                {/* Progress Circle & Adherence Stats: Side-by-side on mobile, expansive on desktop */}
+                <div className="flex items-center gap-3.5 sm:gap-6 text-left w-full sm:w-auto min-w-0">
+                  <div className="relative w-24 h-24 sm:w-36 sm:h-36 shrink-0 flex items-center justify-center">
                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
                       <circle
                         cx="60"
@@ -258,12 +258,12 @@ export default function StatusDashboardPage() {
                         strokeLinecap="round"
                       />
                     </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center pointer-events-none select-none overflow-hidden">
-                      <span className="text-3xl sm:text-4xl font-extrabold text-text-primary tracking-tight leading-none">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center p-1 text-center pointer-events-none select-none overflow-hidden">
+                      <span className="text-xl sm:text-3xl font-black text-text-primary tracking-tight leading-none">
                         {adherencePct}%
                       </span>
                       <span
-                        className="text-[10px] sm:text-xs font-semibold text-text-secondary tracking-normal mt-1.5 px-2 truncate max-w-[100px] leading-tight block"
+                        className="text-[8px] sm:text-[11px] font-semibold text-text-secondary tracking-normal mt-0.5 sm:mt-1 px-1 truncate max-w-[70px] sm:max-w-[100px] leading-tight block"
                         title={t("adherenceLabel")}
                       >
                         {t("adherenceLabel")}
@@ -271,24 +271,50 @@ export default function StatusDashboardPage() {
                     </div>
                   </div>
 
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-xl sm:text-2xl font-bold text-text-primary">
+                  <div className="min-w-0 flex-1 space-y-1 sm:space-y-1.5">
+                    <h2 className="text-base sm:text-2xl font-bold text-text-primary leading-tight">
                       {state === "all_taken" && t("allDoneTitle")}
                       {state === "in_progress" && t("inProgressTitle")}
                       {state === "has_missed" && t("hasMissedTitle")}
                       {state === "no_doses" && t("noDosesScheduledToday")}
                     </h2>
-                    <p className="text-sm text-text-secondary mt-1">
+                    <p className="text-xs sm:text-sm text-text-secondary">
                       {t("takenDosesCount", {
                         taken: takenCount,
                         total: totalScheduled,
                       })}
                     </p>
+
+                    {/* State Pill / Celebration on mobile sits cleanly inline */}
+                    <div className="pt-0.5 sm:hidden">
+                      {state === "all_taken" && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-accent-green/15 text-accent-green font-bold text-xs border border-accent-green/30">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>{t("allDoneBadge")}</span>
+                        </div>
+                      )}
+                      {state === "has_missed" && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-accent-crimson/15 text-accent-crimson font-bold text-xs border border-accent-crimson/30">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          <span>{t("missedDosesCount", { count: daySummary.missed_count || 0 })}</span>
+                        </div>
+                      )}
+                      {state === "in_progress" && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-primary-soft text-primary font-bold text-xs">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>
+                            {t("remainingDosesCount", {
+                              count: Math.max(0, totalScheduled - takenCount),
+                            })}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Right: State Pill / Celebration */}
-                <div className="text-center md:text-right shrink-0">
+                {/* Right: State Pill / Celebration on Tablet & Desktop */}
+                <div className="hidden sm:block text-right shrink-0">
                   {state === "all_taken" && (
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-green/15 text-accent-green font-bold text-sm border border-accent-green/30">
                       <Sparkles className="w-4 h-4" />
@@ -315,9 +341,9 @@ export default function StatusDashboardPage() {
               </div>
 
               {/* Privacy notice banner (Section 1.2) */}
-              <div className="mt-6 pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-text-secondary">
-                <span>{t("privacyHonestStatusNotice")}</span>
-                <Link href={`/${locale}/medicines`} className="text-primary font-semibold hover:underline">
+              <div className="mt-3.5 sm:mt-6 pt-2.5 sm:pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2 text-[11px] sm:text-xs text-text-secondary">
+                <span className="leading-relaxed">{t("privacyHonestStatusNotice")}</span>
+                <Link href={`/${locale}/medicines`} className="text-primary font-bold hover:underline shrink-0">
                   {t("manageMedicinesLink")} &rarr;
                 </Link>
               </div>
@@ -328,8 +354,8 @@ export default function StatusDashboardPage() {
 
       {/* VIEW: WEEK SUMMARY (STA-2) */}
       {viewMode === "week" && weekSummary && (
-        <div className="space-y-6">
-          <Card className="p-4 sm:p-6 bg-surface border border-border shadow-sm">
+        <div className="space-y-4 sm:space-y-6">
+          <Card className="p-3.5 sm:p-6 bg-surface border border-border shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
               <div>
                 <span className="text-xs font-bold uppercase tracking-wider text-text-secondary">
@@ -392,8 +418,8 @@ export default function StatusDashboardPage() {
 
       {/* VIEW: MONTH CALENDAR (STA-3) */}
       {viewMode === "month" && monthSummary && (
-        <div className="space-y-6">
-          <Card className="p-4 sm:p-6 bg-surface border border-border shadow-sm">
+        <div className="space-y-4 sm:space-y-6">
+          <Card className="p-3.5 sm:p-6 bg-surface border border-border shadow-sm">
             {/* Month Header & Controls */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
               <div>

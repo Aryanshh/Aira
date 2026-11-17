@@ -513,7 +513,7 @@ export default function ElderSimpleViewPage() {
   const primaryContact = contacts[0] || null;
 
   return (
-    <div className="min-h-screen bg-[#FFF9F3] text-stone-900 flex flex-col font-sans select-none pb-[calc(5rem+env(safe-area-inset-bottom,0px))]">
+    <div className="min-h-screen min-h-[100dvh] bg-[#FFF9F3] text-stone-900 flex flex-col font-sans select-none pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">
       {/* Top Header Bar with Safe Area Support */}
       <header className="sticky top-0 z-30 bg-[#FFF9F3]/95 backdrop-blur-md border-b border-amber-200/60 px-3 sm:px-8 py-2.5 sm:py-3.5 shadow-2xs pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-2 sm:gap-4">

@@ -39,7 +39,7 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
 
   return (
     <ElderProvider>
-      <div className="min-h-screen bg-bg-app flex flex-col font-sans">
+      <div className="min-h-screen min-h-[100dvh] bg-bg-app flex flex-col font-sans">
         {/* Top Header with Safe Area Insets */}
         <header className="sticky top-0 z-40 bg-surface/95 backdrop-blur-md border-b border-border shadow-2xs pt-[env(safe-area-inset-top,0px)]">
           <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
@@ -102,30 +102,32 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
         <MedicineAlarmBanner />
 
         {/* Main Content Area: with safe area bottom clearance */}
-        <main className="flex-1 max-w-6xl w-full mx-auto p-3.5 sm:p-6 md:p-8 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] sm:pb-8">
+        <main className="flex-1 max-w-6xl w-full mx-auto p-3.5 sm:p-6 md:p-8 pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))] sm:pb-8">
           {children}
         </main>
 
         {/* Mobile Bottom Navigation with Safe Area Support */}
-        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/95 backdrop-blur-md border-t border-border flex justify-around items-center px-1 shadow-lg h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)]">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[11px] font-semibold transition-all active:scale-95 ${
-                  isActive ? "text-primary font-bold" : "text-text-secondary hover:text-text-primary"
-                }`}
-              >
-                <div className={`p-1 rounded-xl transition-colors ${isActive ? "bg-primary-soft text-primary" : ""}`}>
-                  <Icon className="w-5 h-5" />
-                </div>
-                <span className="mt-0.5 leading-tight tracking-tight truncate w-full text-center px-0.5 text-[10px] sm:text-[11px]">{item.label}</span>
-              </Link>
-            );
-          })}
+        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/98 backdrop-blur-xl border-t border-border shadow-lg h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)]">
+          <div className="flex justify-around items-center h-16 px-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-[11px] font-semibold transition-all active:scale-95 ${
+                    isActive ? "text-primary font-bold" : "text-text-secondary hover:text-text-primary"
+                  }`}
+                >
+                  <div className={`p-1 rounded-xl transition-colors ${isActive ? "bg-primary-soft text-primary" : ""}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className="mt-0.5 leading-tight tracking-tight truncate w-full text-center px-0.5 text-[10px] sm:text-[11px]">{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
         </nav>
       </div>
     </ElderProvider>
