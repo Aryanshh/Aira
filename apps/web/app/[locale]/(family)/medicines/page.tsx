@@ -14,6 +14,7 @@ import {
   Pill,
   Play,
   Plus,
+  Sparkles,
   Square,
   StopCircle,
   Volume2,
@@ -22,6 +23,7 @@ import {
 import { useElder } from "@/components/elder-context";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { PrescriptionUploadModal } from "@/components/prescription-upload-modal";
 
 interface Schedule {
   frequency: string;
@@ -62,6 +64,7 @@ export default function MedicinesListPage() {
   const [medicines, setMedicines] = React.useState<Medicine[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
+  const [showPrescriptionModal, setShowPrescriptionModal] = React.useState(false);
 
   const fetchMedicines = React.useCallback(async () => {
     if (!selectedElder) return;
@@ -218,12 +221,23 @@ export default function MedicinesListPage() {
         </div>
 
         {canManage && (
-          <Link href={`/${locale}/medicines/new`}>
-            <Button className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              <span>{t("addMedicineButton")}</span>
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setShowPrescriptionModal(true)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl bg-surface border border-primary/40 text-primary hover:bg-primary-soft/40 hover:border-primary shadow-xs font-bold text-xs sm:text-sm transition-all active:scale-95"
+            >
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span>{t("uploadPrescriptionButton")}</span>
+            </button>
+
+            <Link href={`/${locale}/medicines/new`}>
+              <Button className="flex items-center gap-2 font-bold shadow-xs">
+                <Plus className="w-4 h-4" />
+                <span>{t("addMedicineButton")}</span>
+              </Button>
+            </Link>
+          </div>
         )}
       </div>
 
@@ -235,7 +249,7 @@ export default function MedicinesListPage() {
 
       {/* Empty State */}
       {!loading && medicines.length === 0 && (
-        <Card className="p-12 text-center bg-surface border border-dashed border-border rounded-2xl">
+        <Card className="p-8 sm:p-12 text-center bg-surface border border-dashed border-border rounded-2xl">
           <div className="w-12 h-12 rounded-full bg-primary-soft text-primary flex items-center justify-center mx-auto mb-3">
             <Pill className="w-6 h-6" />
           </div>
@@ -244,9 +258,18 @@ export default function MedicinesListPage() {
             {t("noMedicinesSubtitle")}
           </p>
           {canManage && (
-            <div className="mt-5">
+            <div className="mt-5 flex items-center justify-center gap-2.5 sm:gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setShowPrescriptionModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface border border-primary/40 text-primary hover:bg-primary-soft/40 shadow-xs font-bold text-sm transition-all active:scale-95"
+              >
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span>{t("uploadPrescriptionButton")}</span>
+              </button>
+
               <Link href={`/${locale}/medicines/new`}>
-                <Button>{t("addFirstMedicineButton")}</Button>
+                <Button className="font-bold">{t("addFirstMedicineButton")}</Button>
               </Link>
             </div>
           )}
@@ -407,6 +430,17 @@ export default function MedicinesListPage() {
           );
         })}
       </div>
+
+      {/* AI Prescription Upload & Verification Modal */}
+      {selectedElder && (
+        <PrescriptionUploadModal
+          isOpen={showPrescriptionModal}
+          onClose={() => setShowPrescriptionModal(false)}
+          elderId={selectedElder.id}
+          elderName={selectedElder.preferred_name || selectedElder.full_name}
+          onSuccess={fetchMedicines}
+        />
+      )}
     </div>
   );
 }
