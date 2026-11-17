@@ -30,11 +30,21 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
 
   const handleSignOut = async () => {
     try {
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem("aira_selected_elder_id");
+          localStorage.removeItem("aira_elder_profile");
+          localStorage.removeItem("aira_elder_doses");
+          localStorage.removeItem("aira_elder_contacts");
+        } catch {
+          // Ignored
+        }
+      }
       await fetch("/api/v1/auth/logout", { method: "POST" });
     } catch {
       // Ignored
     }
-    router.push(`/${locale}/login`);
+    window.location.href = `/${locale}/login`;
   };
 
   return (

@@ -67,7 +67,8 @@ export default async function middleware(request: NextRequest) {
   }
 
   // 3. Authenticated user trying to access login/register
-  if (isAuthRoute && isAuthenticated) {
+  // Allow accessing /register freely so users can always create a separate fresh account
+  if (isAuthRoute && isAuthenticated && pathnameWithoutLocale !== "/register") {
     if (role === "elder") {
       return NextResponse.redirect(new URL(`/${locale}/elder`, request.url));
     }

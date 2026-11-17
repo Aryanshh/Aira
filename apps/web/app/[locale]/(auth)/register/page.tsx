@@ -57,25 +57,21 @@ export default function RegisterPage() {
         return;
       }
 
-      // Auto sign-in immediately so session is created
-      try {
-        const loginRes = await fetch("/api/v1/auth/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: normalizedEmail, password }),
-        });
-        if (loginRes.ok) {
-          window.location.href = `/${locale}/elders/new`;
-          return;
+      // Clear any prior cached elder data from localStorage
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem("aira_selected_elder_id");
+          localStorage.removeItem("aira_elder_profile");
+          localStorage.removeItem("aira_elder_doses");
+          localStorage.removeItem("aira_elder_contacts");
+        } catch {
+          // Ignored
         }
-      } catch {
-        // Fallback
       }
 
-      setSuccess(true);
-      setTimeout(() => {
-        window.location.href = `/${locale}/login`;
-      }, 1500);
+      // Direct seamless transition into fresh account onboarding
+      window.location.href = `/${locale}/elders/new`;
+      return;
     } catch {
       setError("An unexpected network error occurred.");
       setLoading(false);

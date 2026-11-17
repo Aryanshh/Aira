@@ -62,6 +62,18 @@ export default function LoginPage() {
         return;
       }
 
+      // Clear any prior cached elder data from localStorage
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem("aira_selected_elder_id");
+          localStorage.removeItem("aira_elder_profile");
+          localStorage.removeItem("aira_elder_doses");
+          localStorage.removeItem("aira_elder_contacts");
+        } catch {
+          // Ignored
+        }
+      }
+
       // Hard redirect to load fresh server session and cookies
       window.location.href = `/${locale}/status`;
     } catch {

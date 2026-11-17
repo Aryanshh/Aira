@@ -50,6 +50,7 @@ export function ElderProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem(STORAGE_KEY, data[0].id);
         } else {
           setSelectedElderId(null);
+          localStorage.removeItem(STORAGE_KEY);
         }
       }
     } catch {
