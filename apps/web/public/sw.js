@@ -28,6 +28,53 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// Push Notifications Handler (Web Push)
+self.addEventListener("push", (event) => {
+  let data = {
+    title: "AIRA Care Alert",
+    body: "Critical medicine and elder safety alert.",
+    url: "/status",
+  };
+
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch {
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body || "Critical medicine and elder safety alert.",
+    icon: "/favicon.ico",
+    badge: "/favicon.ico",
+    vibrate: [200, 100, 200, 100, 200],
+    data: { url: data.url || "/status" },
+    tag: data.tag || "aira-care-alert",
+    renotify: true,
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title || "AIRA Care Alert", options));
+});
+
+// Notification Click Handler
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const urlToOpen = event.notification.data?.url || "/status";
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url && client.url.includes(urlToOpen) && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});
+
 // Network-first with Cache-fallback for API requests and Stale-while-revalidate for pages
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
