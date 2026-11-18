@@ -72,14 +72,30 @@ def heard_wake_word(text: str) -> bool:
     return False
 
 
-def parse_device(value: str | None) -> int | str | None:
-    """Convert device argument to integer index if possible, else substring."""
-    if value is None:
+def find_usb_input_device(hint: str | int | None = None) -> int | str | None:
+    """Finds or auto-detects USB soundcard input device (USB PnP Sound Device)."""
+    if hint is not None:
+        try:
+            return int(hint)
+        except ValueError:
+            return hint
+    if sd is None:
         return None
-    try:
-        return int(value)
-    except ValueError:
-        return value
+
+    devices = sd.query_devices()
+    for idx, dev in enumerate(devices):
+        if dev.get("max_input_channels", 0) > 0:
+            name = dev.get("name", "").lower()
+            if any(k in name for k in ("usb", "c-media", "sound card", "mic", "audio")):
+                return idx
+
+    default_in = sd.default.device[0]
+    return default_in if default_in >= 0 else None
+
+
+def parse_device(value: str | None) -> int | str | None:
+    """Resolve input device to USB sound card by default, or specific index/name."""
+    return find_usb_input_device(value)
 
 
 def to_mono(block: np.ndarray) -> np.ndarray:

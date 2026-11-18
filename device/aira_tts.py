@@ -59,6 +59,55 @@ DEFAULT_TMP_WAV = "/tmp/aira_tts_output.wav"
 DEFAULT_PAD_WAV = "/tmp/aira_tts_padded.wav"
 
 
+def find_stone620_sink() -> str | None:
+    """Finds active Bluetooth sink (Stone 620 / bluez_output)."""
+    if not shutil.which("pactl"):
+        return None
+    try:
+        proc = subprocess.run(["pactl", "list", "short", "sinks"], capture_output=True, text=True, check=True)
+        for line in proc.stdout.splitlines():
+            parts = line.split()
+            if len(parts) >= 2 and "bluez_output" in parts[1].lower():
+                return parts[1]
+    except Exception:
+        pass
+    return None
+
+
+def auto_connect_stone620() -> str | None:
+    """Auto-connects to Stone 620 via bluetoothctl if disconnected, and sets as default sink."""
+    sink = find_stone620_sink()
+    if sink:
+        return sink
+
+    if not shutil.which("bluetoothctl"):
+        return None
+
+    try:
+        res = subprocess.run(["bluetoothctl", "devices"], capture_output=True, text=True, check=True)
+        mac = None
+        for line in res.stdout.splitlines():
+            if "stone 620" in line.lower() or "stone" in line.lower():
+                parts = line.split()
+                if len(parts) >= 3 and parts[0] == "Device":
+                    mac = parts[1]
+                    break
+        if mac:
+            print(f"📡 Connecting to Stone 620 ({mac})...")
+            subprocess.run(["bluetoothctl", "connect", mac], capture_output=True, text=True, timeout=10)
+            time.sleep(2)
+            sink = find_stone620_sink()
+            if sink:
+                subprocess.run(["pactl", "set-default-sink", sink], check=False)
+                subprocess.run(["pactl", "set-sink-volume", sink, "85%"], check=False)
+                print(f"🔊 Stone 620 connected as default audio sink: {sink}")
+                return sink
+    except Exception as e:
+        print(f"Notice: Stone 620 Bluetooth connect check: {e}", file=sys.stderr)
+
+    return find_stone620_sink()
+
+
 def pad_wav(src_path: str, dst_path: str, lead_sec: float = 0.6, tail_sec: float = 0.4) -> None:
     """Add silence before and after speech so Bluetooth speakers do not clip audio."""
     with wave.open(src_path, "rb") as src:
@@ -80,11 +129,13 @@ def pad_wav(src_path: str, dst_path: str, lead_sec: float = 0.6, tail_sec: float
 
 
 def play_audio(wav_path: str, sink: str | None = None) -> None:
-    """Plays audio through PipeWire/Pulse (paplay) or ALSA (aplay)."""
+    """Plays audio through PipeWire/Pulse (paplay) or ALSA (aplay), prioritizing Stone 620."""
+    target_sink = sink or auto_connect_stone620()
+
     if shutil.which("paplay"):
         cmd = ["paplay"]
-        if sink:
-            cmd.extend(["-d", sink])
+        if target_sink:
+            cmd.extend(["-d", target_sink])
         cmd.append(wav_path)
     elif shutil.which("aplay"):
         cmd = ["aplay", wav_path]
