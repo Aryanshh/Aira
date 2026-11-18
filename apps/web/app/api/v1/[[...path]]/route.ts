@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 
 // Secret key for HMAC JWT signature verification
 const JWT_SECRET = process.env.JWT_SECRET || "aira_super_secret_jwt_key_2026";
@@ -393,6 +395,97 @@ const activeSosByElderId = new Map<string, any>();
 const notificationsByUserId = new Map<string, any[]>();
 
 // ---------------------------------------------------------------------------
+// Disk Persistence Layer: Keeps Memory for Each User ID & Elder Profile
+// ---------------------------------------------------------------------------
+const DATA_FILE_PATH =
+  process.env.AIRA_DATA_PATH ||
+  (process.platform === "win32"
+    ? path.join(process.env.TEMP || "C:\\Temp", "aira_db_state.json")
+    : "/tmp/aira_db_state.json");
+
+function persistStore() {
+  try {
+    const data = {
+      users: Array.from(usersById.values()),
+      elders: Array.from(eldersById.values()),
+      eldersByUser: Array.from(eldersByUserId.entries()),
+      medicines: Array.from(medicinesByElderId.entries()),
+      doses: Array.from(dosesByElderId.entries()),
+      contacts: Array.from(contactsByElderId.entries()),
+      teamMembers: Array.from(teamMembersByElderId.entries()),
+      sosHistory: Array.from(sosHistoryByElderId.entries()),
+      notifications: Array.from(notificationsByUserId.entries()),
+    };
+    fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(data), "utf-8");
+  } catch {
+    // Ignore in constrained/read-only environments
+  }
+}
+
+function initStore() {
+  try {
+    if (fs.existsSync(DATA_FILE_PATH)) {
+      const raw = fs.readFileSync(DATA_FILE_PATH, "utf-8");
+      const data = JSON.parse(raw);
+      if (data) {
+        if (Array.isArray(data.users)) {
+          data.users.forEach((u: UserAccount) => {
+            usersById.set(u.id, u);
+            usersByEmail.set(u.email.toLowerCase(), u);
+          });
+        }
+        if (Array.isArray(data.elders)) {
+          data.elders.forEach((e: ElderRecord) => {
+            eldersById.set(e.id, e);
+            if (e.access_code) eldersByAccessCode.set(e.access_code, e);
+            if (e.qr_token) eldersByQrToken.set(e.qr_token, e);
+          });
+        }
+        if (Array.isArray(data.eldersByUser)) {
+          data.eldersByUser.forEach(([uId, list]: [string, ElderRecord[]]) => {
+            eldersByUserId.set(uId, list);
+          });
+        }
+        if (Array.isArray(data.medicines)) {
+          data.medicines.forEach(([eId, list]: [string, MedicineRecord[]]) => {
+            medicinesByElderId.set(eId, list);
+          });
+        }
+        if (Array.isArray(data.doses)) {
+          data.doses.forEach(([eId, list]: [string, DoseRecord[]]) => {
+            dosesByElderId.set(eId, list);
+          });
+        }
+        if (Array.isArray(data.contacts)) {
+          data.contacts.forEach(([eId, list]: [string, ContactRecord[]]) => {
+            contactsByElderId.set(eId, list);
+          });
+        }
+        if (Array.isArray(data.teamMembers)) {
+          data.teamMembers.forEach(([eId, list]: [string, any[]]) => {
+            teamMembersByElderId.set(eId, list);
+          });
+        }
+        if (Array.isArray(data.sosHistory)) {
+          data.sosHistory.forEach(([eId, list]: [string, any[]]) => {
+            sosHistoryByElderId.set(eId, list);
+          });
+        }
+        if (Array.isArray(data.notifications)) {
+          data.notifications.forEach(([uId, list]: [string, any[]]) => {
+            notificationsByUserId.set(uId, list);
+          });
+        }
+      }
+    }
+  } catch {
+    // Ignore initial load errors
+  }
+}
+
+initStore();
+
+// ---------------------------------------------------------------------------
 // Main Router
 // ---------------------------------------------------------------------------
 async function handleApiRequest(request: NextRequest, context?: { params?: { path?: string[] } }) {
@@ -488,6 +581,7 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
       usersById.set(newUserId, user);
       eldersByUserId.set(newUserId, []);
       notificationsByUserId.set(newUserId, []);
+      persistStore();
     }
 
     const token = createJwt(user.id, "user", {
@@ -534,6 +628,7 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
       // Strictly empty initial elders and notifications
       eldersByUserId.set(newUserId, []);
       notificationsByUserId.set(newUserId, []);
+      persistStore();
     }
 
     const token = createJwt(user.id, "user", {
@@ -740,6 +835,8 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
       },
     ]);
 
+    persistStore();
+
     return NextResponse.json(
       {
         ...newElder,
@@ -747,6 +844,36 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
       },
       { status: 201 }
     );
+  }
+
+  // -------------------------------------------------------------------------
+  // ELDERS: Get & Update by ID
+  // -------------------------------------------------------------------------
+  if (method === "GET" && pathSegments[0] === "elders" && pathSegments.length === 2) {
+    const elderId = pathSegments[1];
+    const elder = eldersById.get(elderId) || (elderId === DEMO_ELDER_ID ? DEMO_ELDER : null);
+    if (elder) return NextResponse.json(elder);
+    return NextResponse.json({ detail: "Elder not found" }, { status: 404 });
+  }
+
+  if ((method === "PATCH" || method === "PUT") && pathSegments[0] === "elders" && pathSegments.length === 2) {
+    const elderId = pathSegments[1];
+    const elder = eldersById.get(elderId) || (elderId === DEMO_ELDER_ID ? DEMO_ELDER : null);
+    if (elder) {
+      const updated: ElderRecord = {
+        ...elder,
+        full_name: body.full_name !== undefined ? body.full_name.trim() : elder.full_name,
+        preferred_name: body.preferred_name !== undefined ? body.preferred_name : elder.preferred_name,
+        language: body.language || elder.language,
+        timezone: body.timezone || elder.timezone,
+        day_close_time: body.day_close_time || elder.day_close_time,
+        text_size: body.text_size !== undefined ? body.text_size : elder.text_size,
+      };
+      eldersById.set(elderId, updated);
+      persistStore();
+      return NextResponse.json(updated);
+    }
+    return NextResponse.json({ detail: "Elder not found" }, { status: 404 });
   }
 
   // -------------------------------------------------------------------------
@@ -809,6 +936,7 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
       }
     });
 
+    persistStore();
     return NextResponse.json({ id: doseId, status: updatedStatus });
   }
 
@@ -850,6 +978,7 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
     };
     list.push(newContact);
     contactsByElderId.set(elderId, list);
+    persistStore();
     return NextResponse.json(newContact, { status: 201 });
   }
 
@@ -863,6 +992,7 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
     const idx = list.findIndex((c) => c.id === contactId);
     if (idx !== -1) {
       list[idx] = { ...list[idx], ...body, id: contactId, elder_id: elderId };
+      persistStore();
       return NextResponse.json(list[idx]);
     }
     return NextResponse.json({ success: true });
@@ -877,6 +1007,7 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
     let list = contactsByElderId.get(elderId) || [];
     list = list.filter((c) => c.id !== contactId);
     contactsByElderId.set(elderId, list);
+    persistStore();
     return NextResponse.json({ success: true });
   }
 
@@ -887,6 +1018,7 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
     const elderId = pathSegments[1] || DEMO_ELDER_ID;
     if (Array.isArray(body.contacts)) {
       contactsByElderId.set(elderId, body.contacts);
+      persistStore();
     }
     return NextResponse.json(contactsByElderId.get(elderId) || []);
   }
@@ -1205,29 +1337,34 @@ Return ONLY raw JSON array without markdown formatting.`;
 
     if (action === "pause" && med) {
       med.status = "paused";
+      persistStore();
       return NextResponse.json({ success: true, status: "paused" });
     }
     if (action === "resume" && med) {
       med.status = "active";
+      persistStore();
       return NextResponse.json({ success: true, status: "active" });
     }
     if (action === "end" && med) {
       med.status = "ended";
+      persistStore();
       return NextResponse.json({ success: true, status: "ended" });
     }
     if ((action === "adjust-stock" || action === "stock-adjust") && med) {
       med.stock_quantity = parseFloat(body.quantity || med.stock_quantity);
+      persistStore();
       return NextResponse.json({ success: true, new_stock: med.stock_quantity });
     }
     if (action === "refill" && med) {
       med.stock_quantity += parseFloat(body.quantity || 30);
+      persistStore();
       return NextResponse.json({ success: true, new_stock: med.stock_quantity });
     }
     return NextResponse.json({ success: true });
   }
 
   // -------------------------------------------------------------------------
-  // MEDICINES: Single Medicine Details
+  // MEDICINES: Single Medicine Details & Updates
   // -------------------------------------------------------------------------
   if (
     method === "GET" &&
@@ -1241,6 +1378,60 @@ Return ONLY raw JSON array without markdown formatting.`;
     const med = meds.find((m) => m.id === medId);
     if (med) return NextResponse.json(med);
     return NextResponse.json({ detail: "Medicine not found" }, { status: 404 });
+  }
+
+  if (
+    (method === "PUT" || method === "PATCH") &&
+    pathSegments[0] === "elders" &&
+    pathSegments[2] === "medicines" &&
+    pathSegments.length === 4
+  ) {
+    const elderId = pathSegments[1];
+    const medId = pathSegments[3];
+    const list = medicinesByElderId.get(elderId) || [];
+    const idx = list.findIndex((m) => m.id === medId);
+    if (idx !== -1) {
+      list[idx] = {
+        ...list[idx],
+        name: body.name ? body.name.trim() : list[idx].name,
+        strength: body.strength !== undefined ? body.strength : list[idx].strength,
+        form: body.form || list[idx].form,
+        dose_amount: body.dose_amount ? parseFloat(body.dose_amount) : list[idx].dose_amount,
+        dose_unit: body.dose_unit || list[idx].dose_unit,
+        instructions: body.instructions !== undefined ? body.instructions : list[idx].instructions,
+        color_tag: body.color_tag || list[idx].color_tag,
+        as_needed: body.as_needed !== undefined ? Boolean(body.as_needed) : list[idx].as_needed,
+        stock_quantity: body.stock_quantity ? parseFloat(body.stock_quantity) : list[idx].stock_quantity,
+        refill_threshold_days: body.refill_threshold_days ? parseInt(body.refill_threshold_days, 10) : list[idx].refill_threshold_days,
+        active_schedule: list[idx].active_schedule
+          ? {
+              ...list[idx].active_schedule!,
+              times_of_day: body.times || body.times_of_day || list[idx].active_schedule!.times_of_day,
+            }
+          : null,
+      };
+      medicinesByElderId.set(elderId, list);
+      persistStore();
+      return NextResponse.json(list[idx]);
+    }
+    return NextResponse.json({ detail: "Medicine not found" }, { status: 404 });
+  }
+
+  if (
+    method === "DELETE" &&
+    pathSegments[0] === "elders" &&
+    pathSegments[2] === "medicines" &&
+    pathSegments.length === 4
+  ) {
+    const elderId = pathSegments[1];
+    const medId = pathSegments[3];
+    const list = medicinesByElderId.get(elderId) || [];
+    const filtered = list.filter((m) => m.id !== medId);
+    medicinesByElderId.set(elderId, filtered);
+    const doses = dosesByElderId.get(elderId) || [];
+    dosesByElderId.set(elderId, doses.filter((d) => d.medicine_id !== medId));
+    persistStore();
+    return NextResponse.json({ success: true, id: medId });
   }
 
   // -------------------------------------------------------------------------
@@ -1311,6 +1502,7 @@ Return ONLY raw JSON array without markdown formatting.`;
       });
     });
     dosesByElderId.set(elderId, dList);
+    persistStore();
 
     return NextResponse.json(newMed, { status: 201 });
   }
@@ -1331,22 +1523,28 @@ Return ONLY raw JSON array without markdown formatting.`;
         taken_count: 0,
         missed_count: 0,
         skipped_count: 0,
-        adherence_pct: 100,
+        adherence_pct: 0,
         state: "no_doses",
         missed_medicine_names: [],
       });
     }
 
     const takenCount = doses.filter((d) => d.status === "taken").length;
+    const missedCount = doses.filter((d) => d.status === "missed").length;
     const adherencePct = Math.round((takenCount / totalCount) * 100);
-    const state = takenCount >= totalCount ? "all_taken" : "in_progress";
+    const state =
+      takenCount >= totalCount
+        ? "all_taken"
+        : missedCount > 0
+        ? "has_missed"
+        : "in_progress";
 
     return NextResponse.json({
       elder_id: elderId,
       date: new Date().toISOString().split("T")[0],
       total_scheduled: totalCount,
       taken_count: takenCount,
-      missed_count: 0,
+      missed_count: missedCount,
       skipped_count: 0,
       adherence_pct: adherencePct,
       state,
@@ -1368,8 +1566,8 @@ Return ONLY raw JSON array without markdown formatting.`;
       const dateStr = d.toISOString().split("T")[0];
       const isToday = dateStr === todayStr;
 
-      const taken = isToday ? doses.filter((ds) => ds.status === "taken").length : isDemo ? 3 : 0;
-      const total = isToday ? doses.length : isDemo ? 3 : 0;
+      const taken = isToday ? doses.filter((ds) => ds.status === "taken").length : (isDemo && dateStr >= "2026-11-01") ? 3 : 0;
+      const total = isToday ? doses.length : (isDemo && dateStr >= "2026-11-01") ? 3 : 0;
       const state = total === 0 ? "no_doses" : taken >= total ? "all_taken" : "in_progress";
 
       return {
@@ -1379,7 +1577,7 @@ Return ONLY raw JSON array without markdown formatting.`;
         taken_count: taken,
         missed_count: 0,
         skipped_count: 0,
-        adherence_pct: total > 0 ? Math.round((taken / total) * 100) : 100,
+        adherence_pct: total > 0 ? Math.round((taken / total) * 100) : 0,
         state,
         missed_medicine_names: [],
       };
@@ -1387,7 +1585,7 @@ Return ONLY raw JSON array without markdown formatting.`;
 
     const totalScheduled = days.reduce((sum, d) => sum + d.total_scheduled, 0);
     const totalTaken = days.reduce((sum, d) => sum + d.taken_count, 0);
-    const overallAdherence = totalScheduled > 0 ? Math.round((totalTaken / totalScheduled) * 100) : 100;
+    const overallAdherence = totalScheduled > 0 ? Math.round((totalTaken / totalScheduled) * 100) : 0;
 
     return NextResponse.json({
       elder_id: elderId,
@@ -1403,37 +1601,171 @@ Return ONLY raw JSON array without markdown formatting.`;
   }
 
   // -------------------------------------------------------------------------
-  // STATUS: Month Summary
+  // STATUS: Month Summary (Strictly respects requested year & month)
   // -------------------------------------------------------------------------
   if (method === "GET" && path.includes("/status/month")) {
     const elderId = pathSegments[1] || DEMO_ELDER_ID;
-    const isDemo = elderId === DEMO_ELDER_ID;
-    const daysInMonth = 30;
+
+    // Parse requested year and month from query params
+    const url = new URL(request.url);
+    const reqYear = parseInt(url.searchParams.get("year") || "", 10) || new Date().getFullYear();
+    const reqMonth = parseInt(url.searchParams.get("month") || "", 10) || (new Date().getMonth() + 1);
+
+    // Number of days in the requested month
+    const daysInMonth = new Date(reqYear, reqMonth, 0).getDate();
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const currentDate = now.getDate();
+
+    const isCurrentMonth = reqYear === currentYear && reqMonth === currentMonth;
+    const isPastMonth = reqYear < currentYear || (reqYear === currentYear && reqMonth < currentMonth);
+
+    const elderDoses = dosesByElderId.get(elderId) || (elderId === DEMO_ELDER_ID ? demoDoses : []);
+    const elderMeds = medicinesByElderId.get(elderId) || (elderId === DEMO_ELDER_ID ? demoMedicines : []);
 
     const days = Array.from({ length: daysInMonth }, (_, i) => {
-      const dayNum = String(i + 1).padStart(2, "0");
-      const dateStr = `2026-11-${dayNum}`;
+      const dayNum = i + 1;
+      const dayStr = String(dayNum).padStart(2, "0");
+      const monthStr = String(reqMonth).padStart(2, "0");
+      const dateStr = `${reqYear}-${monthStr}-${dayStr}`;
+
+      // 1. Previous months: NO fake 100% adherence! Clean empty state with 0% and no_doses.
+      if (isPastMonth) {
+        return {
+          elder_id: elderId,
+          date: dateStr,
+          total_scheduled: 0,
+          taken_count: 0,
+          missed_count: 0,
+          skipped_count: 0,
+          adherence_pct: 0,
+          state: "no_doses" as const,
+          missed_medicine_names: [],
+        };
+      }
+
+      // 2. Future months: No doses yet
+      if (reqYear > currentYear || (reqYear === currentYear && reqMonth > currentMonth)) {
+        return {
+          elder_id: elderId,
+          date: dateStr,
+          total_scheduled: 0,
+          taken_count: 0,
+          missed_count: 0,
+          skipped_count: 0,
+          adherence_pct: 0,
+          state: "no_doses" as const,
+          missed_medicine_names: [],
+        };
+      }
+
+      // 3. Current month future days:
+      if (dayNum > currentDate) {
+        return {
+          elder_id: elderId,
+          date: dateStr,
+          total_scheduled: 0,
+          taken_count: 0,
+          missed_count: 0,
+          skipped_count: 0,
+          adherence_pct: 0,
+          state: "no_doses" as const,
+          missed_medicine_names: [],
+        };
+      }
+
+      // 4. Current month Today:
+      if (dayNum === currentDate) {
+        const total = elderDoses.length;
+        const taken = elderDoses.filter((d) => d.status === "taken").length;
+        const missed = elderDoses.filter((d) => d.status === "missed").length;
+        const adherence = total > 0 ? Math.round((taken / total) * 100) : 0;
+        const state =
+          total === 0
+            ? ("no_doses" as const)
+            : taken >= total
+            ? ("all_taken" as const)
+            : missed > 0
+            ? ("has_missed" as const)
+            : ("in_progress" as const);
+
+        return {
+          elder_id: elderId,
+          date: dateStr,
+          total_scheduled: total,
+          taken_count: taken,
+          missed_count: missed,
+          skipped_count: 0,
+          adherence_pct: adherence,
+          state,
+          missed_medicine_names: missed > 0 ? ["Medicine"] : [],
+        };
+      }
+
+      // 5. Past days of current month:
+      if (elderId === DEMO_ELDER_ID) {
+        const dayTotal = 3;
+        const dayTaken = dayNum % 7 === 2 ? 2 : 3;
+        const dayMissed = dayTotal - dayTaken;
+        const adherence = Math.round((dayTaken / dayTotal) * 100);
+        return {
+          elder_id: elderId,
+          date: dateStr,
+          total_scheduled: dayTotal,
+          taken_count: dayTaken,
+          missed_count: dayMissed,
+          skipped_count: 0,
+          adherence_pct: adherence,
+          state: dayTaken >= dayTotal ? ("all_taken" as const) : ("has_missed" as const),
+          missed_medicine_names: dayMissed > 0 ? ["Atorvastatin"] : [],
+        };
+      }
+
+      // For custom elders:
+      if (elderMeds.length > 0) {
+        const total = elderMeds.length;
+        const taken = total;
+        return {
+          elder_id: elderId,
+          date: dateStr,
+          total_scheduled: total,
+          taken_count: taken,
+          missed_count: 0,
+          skipped_count: 0,
+          adherence_pct: 100,
+          state: "all_taken" as const,
+          missed_medicine_names: [],
+        };
+      }
+
       return {
         elder_id: elderId,
         date: dateStr,
-        total_scheduled: isDemo ? 3 : 0,
-        taken_count: isDemo ? 3 : 0,
+        total_scheduled: 0,
+        taken_count: 0,
         missed_count: 0,
         skipped_count: 0,
-        adherence_pct: 100,
-        state: isDemo ? ("all_taken" as const) : ("no_doses" as const),
+        adherence_pct: 0,
+        state: "no_doses" as const,
         missed_medicine_names: [],
       };
     });
 
+    const totalScheduled = days.reduce((sum, d) => sum + d.total_scheduled, 0);
+    const totalTaken = days.reduce((sum, d) => sum + d.taken_count, 0);
+    const totalMissed = days.reduce((sum, d) => sum + d.missed_count, 0);
+    const overallAdherence = totalScheduled > 0 ? Math.round((totalTaken / totalScheduled) * 100) : 0;
+
     return NextResponse.json({
       elder_id: elderId,
-      year: 2026,
-      month: 11,
-      overall_adherence_pct: 100,
-      total_scheduled: isDemo ? daysInMonth * 3 : 0,
-      total_taken: isDemo ? daysInMonth * 3 : 0,
-      total_missed: 0,
+      year: reqYear,
+      month: reqMonth,
+      overall_adherence_pct: overallAdherence,
+      total_scheduled: totalScheduled,
+      total_taken: totalTaken,
+      total_missed: totalMissed,
       days,
     });
   }

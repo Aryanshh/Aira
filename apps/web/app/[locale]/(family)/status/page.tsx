@@ -362,7 +362,9 @@ export default function StatusDashboardPage() {
                   {t("weekOverviewTitle")}
                 </span>
                 <h2 className="text-xl font-bold text-text-primary mt-0.5">
-                  {t("weekOverallAdherence", { pct: weekSummary.overall_adherence_pct ?? 100 })}
+                  {t("weekOverallAdherence", {
+                    pct: (weekSummary.total_scheduled ?? 0) > 0 ? (weekSummary.overall_adherence_pct ?? 0) : 0,
+                  })}
                 </h2>
               </div>
               <div className="text-left sm:text-right text-xs text-text-secondary">
@@ -444,7 +446,7 @@ export default function StatusDashboardPage() {
                   <ChevronLeft className="w-4 h-4 text-text-secondary" />
                 </button>
                 <span className="text-sm font-bold text-primary px-2">
-                  {monthSummary.overall_adherence_pct}%
+                  {monthSummary.total_scheduled > 0 ? `${monthSummary.overall_adherence_pct}%` : "—"}
                 </span>
                 <button
                   type="button"
