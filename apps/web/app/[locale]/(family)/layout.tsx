@@ -116,8 +116,8 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
           {children}
         </main>
 
-        {/* Mobile Bottom Navigation: Translucent frosted-glass bar with Safe Area Support */}
-        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/85 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-xl border-t border-border/90 shadow-[0_-4px_24px_rgba(43,38,35,0.08)] h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)]">
+        {/* Mobile Bottom Navigation: Flat opaque bar with Safe Area Support */}
+        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface border-t border-border shadow-[0_-4px_20px_rgba(43,38,35,0.08)] h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)]">
           <div className="flex justify-around items-center h-16 px-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -130,7 +130,7 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
                     isActive ? "text-primary font-bold" : "text-text-secondary hover:text-text-primary"
                   }`}
                 >
-                  <div className={`p-1.5 rounded-xl transition-colors ${isActive ? "bg-primary-soft/90 text-primary border border-primary/25 shadow-xs" : ""}`}>
+                  <div className={`p-1.5 rounded-xl transition-colors ${isActive ? "bg-primary-soft text-primary border border-primary/25 shadow-xs" : ""}`}>
                     <Icon className="w-5 h-5" />
                   </div>
                   <span className="mt-0.5 leading-tight tracking-tight truncate w-full text-center px-0.5 text-[10px] sm:text-[11px]">{item.label}</span>
