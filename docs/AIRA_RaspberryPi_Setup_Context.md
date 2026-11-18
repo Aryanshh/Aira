@@ -27,9 +27,9 @@ Test order: speaker first, then microphone level, then the full wake-and-reply l
 |---|---|---|
 | Computer | Raspberry Pi 3B+ (hostname `Aira`, login user `main`) | Running |
 | Speaker | Bluetooth speaker shown as **"Stone 620"** | Paired and connected in `bluetoothctl` |
-| Microphone | 3.5mm microphone | **Needs a USB sound card or USB mic** (see section 3); mic test not done yet |
-| Speaker playback test | `paplay` and `espeak-ng` check | Not yet confirmed by the user |
-| Wake-word loop (`listen`) | "Hey Aira" then reply | Not yet run |
+| Microphone | 3.5mm AUX microphone connected via **USB sound card (pink mic jack)** | Connected & Ready |
+| Voice Models | Female Hindi/Hinglish (`swara`), Female Indian English (`neerja`), Offline (`priyamvada`, `espeak-hi`) | Configured in `aira_tts.py` |
+| Wake-Word Chat Loop | "Hey Aira" -> "हाँ जी, बताइए?" -> User query -> Caring response | Ready (`aira_chat.py` / `aira_audio_test.py chat`) |
 
 ---
 
@@ -152,9 +152,10 @@ python aira_tts.py speak --voice priyamvada --text "नमस्ते, आप�
 | Command | What it does | Options |
 |---|---|---|
 | `devices` | Lists audio devices and defaults | none |
-| `speaker` | Speaks the reply through the default output (Bluetooth) | `--reply`, `--sink` |
+| `speaker` | Speaks the reply through the default output (Bluetooth) | `--reply`, `--sink`, `--voice` |
 | `mic` | Live level meter for N seconds; reports quiet, clipping or OK | `--device`, `--seconds` (default 8) |
-| `listen` | Waits for "Hey Aira", then replies | `--device`, `--model`, `--reply`, `--sink` |
+| `listen` | Waits for "Hey Aira", then plays static reply | `--device`, `--model`, `--reply`, `--sink`, `--voice` |
+| `chat` | Full conversational voice loop: "Hey Aira" -> prompt -> listen -> reply | `--device`, `--model`, `--sink`, `--voice`, `--gemini-key`, `--text-mode` |
 
 ### 6.2 Constants
 | Name | Value | Meaning |

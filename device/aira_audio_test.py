@@ -310,6 +310,15 @@ def main() -> None:
     lis_cmd.add_argument("--voice", default=DEFAULT_VOICE, help="Voice profile (swara, neerja, priyamvada)")
     lis_cmd.add_argument("--sink", help="PulseAudio/PipeWire sink name")
 
+    chat_cmd = subparsers.add_parser("chat", help="Run conversational voice companion with 'Hey Aira' wake word")
+    chat_cmd.add_argument("--device", help="Input device index or name (e.g. 'USB')")
+    chat_cmd.add_argument("--model", default=DEFAULT_MODEL, help="Path to Vosk speech model")
+    chat_cmd.add_argument("--voice", default=DEFAULT_VOICE, help="Voice profile (swara, neerja, priyamvada)")
+    chat_cmd.add_argument("--sink", help="PulseAudio/PipeWire sink name")
+    chat_cmd.add_argument("--gemini-key", default=os.environ.get("GEMINI_API_KEY"), help="Google Gemini API key")
+    chat_cmd.add_argument("--openai-key", default=os.environ.get("OPENAI_API_KEY"), help="OpenAI API key")
+    chat_cmd.add_argument("--text-mode", action="store_true", help="Run interactive terminal text chat")
+
     args = parser.parse_args()
 
     if args.command == "devices":
@@ -326,6 +335,22 @@ def main() -> None:
             sink=args.sink,
             voice=args.voice,
         )
+    elif args.command == "chat":
+        try:
+            from aira_chat import run_chat_loop, run_terminal_chat
+            if getattr(args, "text_mode", False):
+                run_terminal_chat(voice=args.voice, gemini_key=args.gemini_key, openai_key=args.openai_key)
+            else:
+                run_chat_loop(
+                    device_hint=args.device,
+                    sink=args.sink,
+                    model_path=args.model,
+                    voice=args.voice,
+                    gemini_key=args.gemini_key,
+                    openai_key=args.openai_key,
+                )
+        except ImportError as err:
+            print(f"Could not load aira_chat: {err}", file=sys.stderr)
     else:
         parser.print_help()
 
