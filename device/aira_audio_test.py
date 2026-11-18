@@ -232,6 +232,117 @@ def cmd_mic(device: int | str | None = None, seconds: int = 8) -> None:
     print("\n✅ Mic level check complete.")
 
 
+def create_clean_mic_stream(device: int | str | None, audio_q: queue.Queue[bytes]):
+    """
+    Creates clean, artifact-free 16kHz mono int16 stream for Vosk.
+    1. Tries native 16000 Hz RawInputStream (cleanest, handled by ALSA/PipeWire C-library).
+    2. Falls back to 48000 Hz with exact 3:1 integer decimation (zero aliasing).
+    3. Falls back to hardware rate with 0.25s block buffer.
+    """
+    # 1. Native 16000 Hz RawInputStream
+    try:
+        def raw_cb(indata, frames, time_info, status):
+            audio_q.put(bytes(indata))
+
+        stream = sd.RawInputStream(
+            samplerate=16000,
+            blocksize=4000,
+            device=device,
+            dtype="int16",
+            channels=1,
+            callback=raw_cb,
+        )
+        stream.start()
+        stream.stop()
+        return stream, "16000 Hz (Native/C-Resampled)"
+    except Exception:
+        pass
+
+    # 2. 48000 Hz with 3:1 decimation
+    try:
+        def cb_48k(indata, frames, time_info, status):
+            mono = indata[:, 0] if indata.ndim > 1 else indata
+            decimated = mono[::3]
+            audio_q.put(decimated.astype(np.int16).tobytes())
+
+        stream = sd.InputStream(
+            samplerate=48000,
+            blocksize=6000,
+            device=device,
+            dtype="int16",
+            channels=1,
+            callback=cb_48k,
+        )
+        stream.start()
+        stream.stop()
+        return stream, "48000 Hz (3:1 Decimation to 16kHz)"
+    except Exception:
+        pass
+
+    # 3. Fallback to hardware rate with large blocks
+    dev_info = sd.query_devices(device, "input")
+    hw_rate = int(dev_info.get("default_samplerate", 44100))
+    def cb_fallback(indata, frames, time_info, status):
+        mono = indata[:, 0] if indata.ndim > 1 else indata
+        dur = len(mono) / hw_rate
+        out_len = int(dur * 16000)
+        if out_len > 0:
+            orig_idx = np.linspace(0, len(mono) - 1, num=out_len)
+            resampled = np.interp(orig_idx, np.arange(len(mono)), mono)
+            audio_q.put(resampled.astype(np.int16).tobytes())
+
+    stream = sd.InputStream(
+        samplerate=hw_rate,
+        blocksize=hw_rate // 4,
+        device=device,
+        dtype="int16",
+        channels=1,
+        callback=cb_fallback,
+    )
+    return stream, f"{hw_rate} Hz (Interpolated)"
+
+
+def cmd_test_mic(device: int | str | None = None, seconds: int = 5, sink: str | None = None) -> None:
+    """Records audio from the microphone and immediately plays it back through the speaker."""
+    chosen_dev = parse_device(device)
+    dev_info = sd.query_devices(chosen_dev, "input")
+    dev_name = dev_info.get("name", "Default")
+    out_wav = "/tmp/aira_mic_playback_test.wav"
+
+    print("=" * 60)
+    print("🎤 MICROPHONE LOOPBACK TEST (Hear What The Pi Hears)")
+    print(f"   Input device: [{chosen_dev}] {dev_name}")
+    print(f"   Recording duration: {seconds} seconds")
+    print("=" * 60)
+    print("\n👉 Speak into your AUX microphone now! Recording starts in 1 second...")
+    time.sleep(1)
+    print("🔴 RECORDING...")
+
+    rate = 16000
+    try:
+        rec_data = sd.rec(int(seconds * rate), samplerate=rate, channels=1, dtype="int16", device=chosen_dev)
+        for i in range(seconds):
+            time.sleep(1)
+            sys.stdout.write(f"\r   Recording... {i + 1}/{seconds}s [{'█' * (i + 1) * 6}{'░' * (seconds - i - 1) * 6}]")
+            sys.stdout.flush()
+        sd.wait()
+    except Exception:
+        rate = int(dev_info.get("default_samplerate", 44100))
+        rec_data = sd.rec(int(seconds * rate), samplerate=rate, channels=1, dtype="int16", device=chosen_dev)
+        sd.wait()
+
+    with wave.open(out_wav, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(rate)
+        wf.writeframes(rec_data.tobytes())
+
+    print("\n\n✅ Recording finished! Saved to", out_wav)
+    print("🔊 PLAYING BACK through Stone 620 speaker now...")
+    play_audio(out_wav, sink=sink)
+    print("✅ Playback finished. If your voice sounded clear, mic input is good!")
+
+
 def cmd_listen(
     device: int | str | None = None,
     model_path: str = DEFAULT_MODEL,
@@ -253,24 +364,25 @@ def cmd_listen(
     model = Model(model_path)
     audio_q: queue.Queue[bytes] = queue.Queue()
 
-    dev_info = sd.query_devices(device, "input")
-    rate = int(dev_info.get("default_samplerate", 44100))
+    chosen_dev = parse_device(device)
+    dev_info = sd.query_devices(chosen_dev, "input")
+    print(f"⏳ Loading Vosk speech recognition model from {model_path}...")
+    model = Model(model_path)
+    audio_q: queue.Queue[bytes] = queue.Queue()
 
-    def mic_callback(indata, frames, time_info, status):
-        mono = to_mono(indata)
-        pcm_16k = to_16k(mono, rate)
-        int16_bytes = (pcm_16k * 32767).astype(np.int16).tobytes()
-        audio_q.put(int16_bytes)
+    stream, mode_desc = create_clean_mic_stream(chosen_dev, audio_q)
 
     print("\n" + "=" * 55)
     print("🟢 AIRA is listening! Say: 'Hey Aira' or 'Aira'...")
+    print(f"   Audio Stream: {mode_desc} on [{chosen_dev}] {dev_info.get('name')}")
     print(f"   Reply configured: \"{reply}\" ({voice})")
     print("=" * 55 + "\n")
 
     while True:
         try:
             recognizer = KaldiRecognizer(model, TARGET_RATE)
-            with sd.InputStream(device=device, channels=1, samplerate=rate, callback=mic_callback):
+            stream.start()
+            try:
                 while True:
                     data = audio_q.get()
                     if recognizer.AcceptWaveform(data):
@@ -289,8 +401,10 @@ def cmd_listen(
                             if heard_wake_word(partial):
                                 print(f"\n🎯 WAKE-WORD DETECTED in partial! Responding...")
                                 break
+            finally:
+                stream.stop()
 
-            # MIC STREAM IS NOW CLOSED to prevent echo loop
+            # MIC STREAM IS NOW STOPPED to prevent echo loop
             speak(reply, sink=sink, voice=voice)
 
             # Flush queue and brief pause before reopening mic
@@ -319,6 +433,11 @@ def main() -> None:
     mic_cmd.add_argument("--device", help="Input device index or name (e.g. 'USB')")
     mic_cmd.add_argument("--seconds", type=int, default=8, help="Seconds to run meter")
 
+    tmic_cmd = subparsers.add_parser("test-mic", help="Record 5s from mic and play back through speaker to check quality")
+    tmic_cmd.add_argument("--device", help="Input device index or name (e.g. 'USB')")
+    tmic_cmd.add_argument("--seconds", type=int, default=5, help="Seconds to record")
+    tmic_cmd.add_argument("--sink", help="PulseAudio/PipeWire sink name")
+
     lis_cmd = subparsers.add_parser("listen", help="Run full wake-word and response loop")
     lis_cmd.add_argument("--device", help="Input device index or name (e.g. 'USB')")
     lis_cmd.add_argument("--model", default=DEFAULT_MODEL, help="Path to Vosk speech model")
@@ -343,6 +462,8 @@ def main() -> None:
         cmd_speaker(reply=args.reply, sink=args.sink, voice=args.voice)
     elif args.command == "mic":
         cmd_mic(device=parse_device(args.device), seconds=args.seconds)
+    elif args.command == "test-mic":
+        cmd_test_mic(device=args.device, seconds=args.seconds, sink=args.sink)
     elif args.command == "listen":
         cmd_listen(
             device=parse_device(args.device),

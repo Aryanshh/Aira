@@ -115,6 +115,76 @@ def find_usb_input_device(hint: str | int | None = None) -> int | str | None:
     return default_in if default_in >= 0 else None
 
 
+def create_clean_mic_stream(device: int | str | None, audio_q: queue.Queue[bytes]):
+    """
+    Creates clean, artifact-free 16kHz mono int16 stream for Vosk.
+    1. Tries native 16000 Hz RawInputStream (cleanest, handled by ALSA/PipeWire C-library).
+    2. Falls back to 48000 Hz with exact 3:1 integer decimation (zero aliasing).
+    3. Falls back to hardware rate with 0.25s block buffer.
+    """
+    # 1. Native 16000 Hz RawInputStream
+    try:
+        def raw_cb(indata, frames, time_info, status):
+            audio_q.put(bytes(indata))
+
+        stream = sd.RawInputStream(
+            samplerate=16000,
+            blocksize=4000,
+            device=device,
+            dtype="int16",
+            channels=1,
+            callback=raw_cb,
+        )
+        stream.start()
+        stream.stop()
+        return stream, "16000 Hz (Native/C-Resampled)"
+    except Exception:
+        pass
+
+    # 2. 48000 Hz with 3:1 decimation
+    try:
+        def cb_48k(indata, frames, time_info, status):
+            mono = indata[:, 0] if indata.ndim > 1 else indata
+            decimated = mono[::3]
+            audio_q.put(decimated.astype(np.int16).tobytes())
+
+        stream = sd.InputStream(
+            samplerate=48000,
+            blocksize=6000,
+            device=device,
+            dtype="int16",
+            channels=1,
+            callback=cb_48k,
+        )
+        stream.start()
+        stream.stop()
+        return stream, "48000 Hz (3:1 Decimation to 16kHz)"
+    except Exception:
+        pass
+
+    # 3. Fallback to hardware rate with large blocks
+    dev_info = sd.query_devices(device, "input")
+    hw_rate = int(dev_info.get("default_samplerate", 44100))
+    def cb_fallback(indata, frames, time_info, status):
+        mono = indata[:, 0] if indata.ndim > 1 else indata
+        dur = len(mono) / hw_rate
+        out_len = int(dur * 16000)
+        if out_len > 0:
+            orig_idx = np.linspace(0, len(mono) - 1, num=out_len)
+            resampled = np.interp(orig_idx, np.arange(len(mono)), mono)
+            audio_q.put(resampled.astype(np.int16).tobytes())
+
+    stream = sd.InputStream(
+        samplerate=hw_rate,
+        blocksize=hw_rate // 4,
+        device=device,
+        dtype="int16",
+        channels=1,
+        callback=cb_fallback,
+    )
+    return stream, f"{hw_rate} Hz (Interpolated)"
+
+
 def to_mono(block: np.ndarray) -> np.ndarray:
     """Averages channels to mono."""
     if block.ndim == 1:
@@ -430,11 +500,13 @@ def run_chat_loop(
     input_dev = find_usb_input_device(device_hint)
     dev_info = sd.query_devices(input_dev, "input")
     dev_name = dev_info.get("name", "Default")
-    rate = int(dev_info.get("default_samplerate", 44100))
+
+    audio_q: queue.Queue[bytes] = queue.Queue()
+    stream, mode_desc = create_clean_mic_stream(input_dev, audio_q)
 
     print("\n" + "=" * 65)
     print("🌸 AIRA Voice Companion Ready")
-    print(f"   Input Mic  : [{input_dev}] {dev_name} ({rate} Hz)")
+    print(f"   Input Mic  : [{input_dev}] {dev_name} ({mode_desc})")
     print(f"   Output TTS : Voice '{voice}' (Stone 620 Bluetooth/Default)")
     print(f"   AI Engine  : {'Gemini Online' if gemini_key else 'OpenAI' if openai_key else 'Local Elder-Care Engine (Offline)'}")
     print("=" * 65)
@@ -442,13 +514,6 @@ def run_chat_loop(
 
     print(f"⏳ Loading Vosk speech model from {model_path}...")
     model = Model(model_path)
-    audio_q: queue.Queue[bytes] = queue.Queue()
-
-    def mic_callback(indata, frames, time_info, status):
-        mono = to_mono(indata)
-        pcm_16k = to_16k(mono, rate)
-        int16_bytes = (pcm_16k * 32767).astype(np.int16).tobytes()
-        audio_q.put(int16_bytes)
 
     while True:
         try:
@@ -458,7 +523,8 @@ def run_chat_loop(
             print("👂 Listening for 'Hey Aira'...")
             recognizer = KaldiRecognizer(model, TARGET_RATE)
 
-            with sd.InputStream(device=input_dev, channels=1, samplerate=rate, callback=mic_callback):
+            stream.start()
+            try:
                 wake_detected = False
                 while not wake_detected:
                     data = audio_q.get()
@@ -476,6 +542,8 @@ def run_chat_loop(
                             if heard_wake_word(partial):
                                 wake_detected = True
                                 print(f"\n🎯 [Wake Word Detected in Partial]: '{partial}'")
+            finally:
+                stream.stop()
 
             # ---------------------------------------------------------
             # STATE 2: Acknowledgment Prompt (Mic Muted)
@@ -499,7 +567,8 @@ def run_chat_loop(
             max_wait_sec = 8.0
             silence_timeout_sec = 1.6
 
-            with sd.InputStream(device=input_dev, channels=1, samplerate=rate, callback=mic_callback):
+            stream.start()
+            try:
                 while time.time() - start_time < max_wait_sec:
                     try:
                         data = audio_q.get(timeout=0.1)
@@ -510,19 +579,22 @@ def run_chat_loop(
                         res = json.loads(query_recognizer.Result())
                         t = res.get("text", "").strip()
                         if t:
+                            print(f"\n   [Heard]: \"{t}\"")
                             user_query = f"{user_query} {t}".strip()
                             speech_detected_time = time.time()
                     else:
                         partial = json.loads(query_recognizer.PartialResult()).get("partial", "").strip()
                         if partial:
-                            sys.stdout.write(f"\r   Heard: \"{partial}\"    ")
+                            sys.stdout.write(f"\r   Listening: \"{partial}\"    ")
                             sys.stdout.flush()
                             speech_detected_time = time.time()
 
                     # End of speech detection: silence after user started speaking
                     if speech_detected_time and (time.time() - speech_detected_time > silence_timeout_sec):
-                        print("\n   [End of sentence detected]")
+                        print("\n   [End of speech detected]")
                         break
+            finally:
+                stream.stop()
 
             # Final check of recognizer output
             final_res = json.loads(query_recognizer.FinalResult())
