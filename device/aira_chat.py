@@ -657,6 +657,7 @@ def run_terminal_chat(voice: str = DEFAULT_VOICE, gemini_key: str | None = None,
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="AIRA Conversational Companion & Voice Chat")
+    parser.add_argument("mode", nargs="?", default="voice", choices=["voice", "chat", "terminal"], help="Mode (default: voice)")
     parser.add_argument("--device", "-d", help="Microphone device index or name (e.g. 'USB' or 1)")
     parser.add_argument("--sink", "-s", help="PulseAudio/PipeWire sink name or index")
     parser.add_argument("--model", "-m", default=DEFAULT_MODEL, help="Path to Vosk speech model")
@@ -667,7 +668,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.text_mode:
+    if args.text_mode or args.mode == "terminal":
         run_terminal_chat(voice=args.voice, gemini_key=args.gemini_key, openai_key=args.openai_key)
     else:
         run_chat_loop(
@@ -678,6 +679,9 @@ def main() -> None:
             gemini_key=args.gemini_key,
             openai_key=args.openai_key,
         )
+
+
+cmd_chat_loop = run_chat_loop
 
 
 if __name__ == "__main__":
