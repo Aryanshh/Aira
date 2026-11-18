@@ -360,10 +360,6 @@ def cmd_listen(
         print("Please download it as specified in AIRA_RaspberryPi_Setup_Context.md", file=sys.stderr)
         return
 
-    print(f"⏳ Loading Vosk speech recognition model from {model_path}...")
-    model = Model(model_path)
-    audio_q: queue.Queue[bytes] = queue.Queue()
-
     chosen_dev = parse_device(device)
     dev_info = sd.query_devices(chosen_dev, "input")
     print(f"⏳ Loading Vosk speech recognition model from {model_path}...")
