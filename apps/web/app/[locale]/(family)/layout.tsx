@@ -51,7 +51,7 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
     <ElderProvider>
       <div className="min-h-screen min-h-[100dvh] bg-bg-app flex flex-col font-sans">
         {/* Top Header with Safe Area Insets */}
-        <header className="sticky top-0 z-40 bg-surface/98 backdrop-blur-md border-b border-border shadow-xs pt-[env(safe-area-inset-top,0px)]">
+        <header className="sticky top-0 z-40 bg-surface/95 backdrop-blur-md border-b border-border shadow-2xs pt-[env(safe-area-inset-top,0px)]">
           <div className="max-w-6xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-2 sm:gap-4">
             {/* Left: Brand + Elder Switcher */}
             <div className="flex items-center gap-2 sm:gap-6 min-w-0">
@@ -82,8 +82,8 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
             </div>
           </div>
 
-          {/* Sub-Navigation: High-contrast mobile pill dock + classic desktop tab bar */}
-          <nav className="max-w-6xl mx-auto px-3 sm:px-6 flex items-center gap-1.5 sm:gap-6 border-t border-border/70 overflow-x-auto no-scrollbar py-2 sm:py-0 bg-surface/95 sm:bg-transparent">
+          {/* Desktop & Tablet Sub-Navigation: hidden on mobile */}
+          <nav className="max-w-6xl mx-auto px-4 sm:px-6 hidden sm:flex border-t border-border/50 gap-6">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname.startsWith(item.href);
@@ -91,13 +91,13 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-0 sm:py-3 text-xs sm:text-sm font-semibold transition-all whitespace-nowrap shrink-0 rounded-xl sm:rounded-none sm:border-b-2 ${
+                  className={`inline-flex items-center gap-2 py-3 text-sm font-medium border-b-2 transition-colors ${
                     isActive
-                      ? "bg-primary text-white sm:bg-transparent sm:text-primary sm:border-primary font-bold shadow-xs sm:shadow-none"
-                      : "bg-surface text-text-primary hover:bg-surface-muted hover:text-text-primary sm:bg-transparent sm:text-text-secondary sm:hover:text-text-primary sm:hover:border-border sm:border-transparent border border-border/80 sm:border-0 shadow-2xs sm:shadow-none"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-text-secondary hover:text-text-primary hover:border-border"
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isActive ? "text-white sm:text-primary" : "text-text-secondary"}`} />
+                  <Icon className="w-4 h-4" />
                   <span>{item.label}</span>
                 </Link>
               );
@@ -116,8 +116,8 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
           {children}
         </main>
 
-        {/* Mobile Bottom Navigation with Safe Area Support */}
-        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/98 backdrop-blur-xl border-t border-border/90 shadow-[0_-4px_20px_rgba(43,38,35,0.08)] h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)]">
+        {/* Mobile Bottom Navigation: Translucent frosted-glass bar with Safe Area Support */}
+        <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface/85 supports-[backdrop-filter]:bg-surface/80 backdrop-blur-xl border-t border-border/90 shadow-[0_-4px_24px_rgba(43,38,35,0.08)] h-[calc(4rem+env(safe-area-inset-bottom,0px))] pb-[env(safe-area-inset-bottom,0px)]">
           <div className="flex justify-around items-center h-16 px-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -130,7 +130,7 @@ export default function FamilyLayout({ children }: { children: React.ReactNode }
                     isActive ? "text-primary font-bold" : "text-text-secondary hover:text-text-primary"
                   }`}
                 >
-                  <div className={`p-1 rounded-xl transition-colors ${isActive ? "bg-primary-soft text-primary border border-primary/25 shadow-xs" : ""}`}>
+                  <div className={`p-1.5 rounded-xl transition-colors ${isActive ? "bg-primary-soft/90 text-primary border border-primary/25 shadow-xs" : ""}`}>
                     <Icon className="w-5 h-5" />
                   </div>
                   <span className="mt-0.5 leading-tight tracking-tight truncate w-full text-center px-0.5 text-[10px] sm:text-[11px]">{item.label}</span>
