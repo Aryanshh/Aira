@@ -1,0 +1,5 @@
+numpy
+sounddevice
+vosk
+edge-tts
+piper-tts
