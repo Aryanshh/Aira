@@ -749,6 +749,23 @@ class AiraChatBot:
                     self.history.append({"role": "model", "parts": [{"text": confirm_reply}]})
                     return confirm_reply
 
+        # Check for profile update intent (Language / Name change from voice)
+        if any(w in q_clean.lower() for w in ("अंग्रेजी में बात", "speak in english", "talk in english")):
+            if self.api_client:
+                self.api_client.update_preferences(language="en")
+            lang_reply = f"Sure {elder_name}! I have set your preferred language to English in the app."
+            self.history.append({"role": "user", "parts": [{"text": q_clean}]})
+            self.history.append({"role": "model", "parts": [{"text": lang_reply}]})
+            return lang_reply
+
+        if any(w in q_clean.lower() for w in ("हिंदी में बात", "speak in hindi", "talk in hindi")):
+            if self.api_client:
+                self.api_client.update_preferences(language="hi")
+            lang_reply = f"जी {elder_name}, मैंने ऐप में आपकी पसंदीदा भाषा हिंदी सेट कर दी है।"
+            self.history.append({"role": "user", "parts": [{"text": q_clean}]})
+            self.history.append({"role": "model", "parts": [{"text": lang_reply}]})
+            return lang_reply
+
         # Reset history command
         if any(w in q_clean.lower() for w in ("नया विषय", "reset chat", "clear memory", "forget all", "start over")):
             self.reset_history()
@@ -834,10 +851,16 @@ class MedicineAlarmDaemon:
         self.running = False
 
     def _run_loop(self) -> None:
+        loop_count = 0
         while self.running:
             try:
-                # Sync fresh doses from webapp periodically
-                self.api_client.fetch_doses()
+                loop_count += 1
+                # Bi-directional sync: full sync (profile, contacts, doses) every 40s, doses every 20s
+                if loop_count % 2 == 0:
+                    self.api_client.sync_all()
+                else:
+                    self.api_client.fetch_doses()
+
                 now = datetime.datetime.now()
                 now_ts = now.timestamp()
                 elder_name = self.api_client.get_preferred_name()

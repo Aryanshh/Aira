@@ -44,6 +44,7 @@ class ElderUpdateRequest(BaseModel):
 class ElderPreferencesUpdateRequest(BaseModel):
     language: Optional[str] = Field(None, pattern="^(en|hi)$")
     text_size: Optional[int] = Field(None, ge=0, le=2)
+    preferred_name: Optional[str] = Field(None, max_length=100)
 
 
 

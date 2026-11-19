@@ -164,6 +164,40 @@ class AiraApiClient:
                 return full
         return "दादाजी"
 
+    def get_language(self) -> str:
+        """Returns elder's configured language ('hi' or 'en')."""
+        if self.profile:
+            return self.profile.get("language", "hi")
+        return "hi"
+
+    def update_preferences(
+        self,
+        language: Optional[str] = None,
+        text_size: Optional[int] = None,
+        preferred_name: Optional[str] = None,
+    ) -> bool:
+        """
+        Updates elder preferences/name on the webapp backend.
+        Ensures hardware changes reflect on the webapp instantly.
+        """
+        payload: Dict[str, Any] = {}
+        if language is not None:
+            payload["language"] = language
+        if text_size is not None:
+            payload["text_size"] = text_size
+        if preferred_name is not None:
+            payload["preferred_name"] = preferred_name
+
+        if not payload:
+            return False
+
+        res = self._make_request("/api/v1/elders/me/preferences", method="PATCH", payload=payload)
+        if res and isinstance(res, dict):
+            self.profile = res
+            self._save_cache()
+            return True
+        return False
+
     def fetch_doses(self) -> List[Dict[str, Any]]:
         """Fetches today's dose schedule for this elder from the webapp."""
         res = self._make_request("/api/v1/elders/me/doses")

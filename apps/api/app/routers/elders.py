@@ -66,6 +66,8 @@ async def update_current_elder_preferences(
         elder.language = payload.language
     if payload.text_size is not None:
         elder.text_size = payload.text_size
+    if payload.preferred_name is not None:
+        elder.preferred_name = payload.preferred_name.strip()
     await db.flush()
     return ElderResponse(
         id=elder.id,
