@@ -59,7 +59,17 @@
     "selectElder": "Select Elder",
     "elders": "Elders in Care",
     "addNewElder": "+ Add Another Elder",
-    "addFirstElder": "Add First Elder"
+    "addFirstElder": "Add First Elder",
+    "editProfile": "Edit Profile",
+    "editElderTitle": "Edit Elder Profile",
+    "editElderDesc": "Update profile details. Changes sync instantly across the webapp, elder screen, and AIRA companion.",
+    "preferredNameLabel": "Preferred / Call Name",
+    "fullNameLabel": "Full Legal Name",
+    "languageLabel": "Voice & Web Language",
+    "textSizeLabel": "Interface Text Size",
+    "saveChanges": "Save Changes",
+    "saving": "Saving...",
+    "saveSuccess": "Profile updated successfully! Synced across all screens."
   },
   "credentials": {
     "shownOnceTitle": "Important: Store these credentials now",

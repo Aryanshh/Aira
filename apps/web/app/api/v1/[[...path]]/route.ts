@@ -870,6 +870,9 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
         text_size: body.text_size !== undefined ? body.text_size : elder.text_size,
       };
       eldersById.set(elderId, updated);
+      if (elderId === DEMO_ELDER_ID) {
+        Object.assign(DEMO_ELDER, updated);
+      }
       persistStore();
       return NextResponse.json(updated);
     }
@@ -892,6 +895,21 @@ async function handleApiRequest(request: NextRequest, context?: { params?: { pat
   // ELDERS: Preferences
   // -------------------------------------------------------------------------
   if ((method === "PATCH" || method === "PUT" || method === "GET") && path === "elders/me/preferences") {
+    const authUser = getAuthUser(request);
+    const elderId = authUser?.userId || DEMO_ELDER_ID;
+    const elder = eldersById.get(elderId) || (elderId === DEMO_ELDER_ID ? DEMO_ELDER : null);
+    if (elder) {
+      if (body.language) elder.language = body.language;
+      if (body.text_size !== undefined) elder.text_size = body.text_size;
+      if (body.preferred_name !== undefined) elder.preferred_name = body.preferred_name;
+      const updated = { ...elder };
+      eldersById.set(elderId, updated);
+      if (elderId === DEMO_ELDER_ID) {
+        Object.assign(DEMO_ELDER, updated);
+      }
+      persistStore();
+      return NextResponse.json(updated);
+    }
     return NextResponse.json({ success: true, text_size: body.text_size ?? 1 });
   }
 

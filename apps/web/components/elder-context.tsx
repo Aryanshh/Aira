@@ -15,12 +15,22 @@ export interface ElderSummary {
   role?: string | null;
 }
 
+export interface ElderUpdateRequestPayload {
+  full_name?: string;
+  preferred_name?: string | null;
+  language?: string;
+  text_size?: number;
+  timezone?: string;
+  day_close_time?: string;
+}
+
 interface ElderContextType {
   elders: ElderSummary[];
   selectedElder: ElderSummary | null;
   selectedElderId: string | null;
   selectElder: (id: string) => void;
-  refreshElders: () => Promise<void>;
+  refreshElders: (silent?: boolean) => Promise<void>;
+  updateElder: (elderId: string, payload: ElderUpdateRequestPayload) => Promise<boolean>;
   isLoading: boolean;
 }
 
@@ -33,40 +43,115 @@ export function ElderProvider({ children }: { children: React.ReactNode }) {
   const [selectedElderId, setSelectedElderId] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  const refreshElders = React.useCallback(async () => {
+  const refreshElders = React.useCallback(async (silent = false) => {
     try {
-      setIsLoading(true);
+      if (!silent) {
+        setIsLoading(true);
+      }
       const res = await fetch("/api/v1/elders");
       if (res.ok) {
         const data: ElderSummary[] = await res.json();
         setElders(data);
 
         // Retain previous selection if valid, or default to first elder
-        const stored = localStorage.getItem(STORAGE_KEY);
+        const stored = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
         if (stored && data.some((e) => e.id === stored)) {
           setSelectedElderId(stored);
         } else if (data.length > 0) {
-          setSelectedElderId(data[0].id);
-          localStorage.setItem(STORAGE_KEY, data[0].id);
+          setSelectedElderId((prev) => (prev && data.some((e) => e.id === prev) ? prev : data[0].id));
+          if (typeof window !== "undefined") {
+            localStorage.setItem(STORAGE_KEY, data[0].id);
+          }
         } else {
           setSelectedElderId(null);
-          localStorage.removeItem(STORAGE_KEY);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem(STORAGE_KEY);
+          }
         }
       }
     } catch {
       // Error handled silently, empty state presented
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
+  const updateElder = React.useCallback(
+    async (elderId: string, payload: ElderUpdateRequestPayload): Promise<boolean> => {
+      try {
+        const res = await fetch(`/api/v1/elders/${elderId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          const updated: ElderSummary = await res.json();
+          // Optimistically update list
+          setElders((prev) =>
+            prev.map((e) => (e.id === elderId ? { ...e, ...updated } : e))
+          );
+          // Broadcast to other tabs & windows
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("aira:profile-updated", { detail: updated }));
+            try {
+              const bc = new BroadcastChannel("aira_sync");
+              bc.postMessage({ type: "profile_updated", elderId, data: updated });
+              bc.close();
+            } catch {
+              // BroadcastChannel might not be supported everywhere
+            }
+          }
+          await refreshElders(true);
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
+      }
+    },
+    [refreshElders]
+  );
+
   React.useEffect(() => {
-    refreshElders();
+    refreshElders(false);
+
+    // Continuous 3-second background polling for live profile sync
+    const pollTimer = setInterval(() => {
+      refreshElders(true);
+    }, 3000);
+
+    // Cross-tab and window event listener
+    const handleProfileUpdate = () => {
+      refreshElders(true);
+    };
+    window.addEventListener("aira:profile-updated", handleProfileUpdate);
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel("aira_sync");
+      bc.onmessage = (event) => {
+        if (event.data?.type === "profile_updated") {
+          refreshElders(true);
+        }
+      };
+    } catch {
+      // Ignored
+    }
+
+    return () => {
+      clearInterval(pollTimer);
+      window.removeEventListener("aira:profile-updated", handleProfileUpdate);
+      if (bc) bc.close();
+    };
   }, [refreshElders]);
 
   const selectElder = (id: string) => {
     setSelectedElderId(id);
-    localStorage.setItem(STORAGE_KEY, id);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, id);
+    }
   };
 
   const selectedElder = React.useMemo(() => {
@@ -81,6 +166,7 @@ export function ElderProvider({ children }: { children: React.ReactNode }) {
         selectedElderId: selectedElder?.id || null,
         selectElder,
         refreshElders,
+        updateElder,
         isLoading,
       }}
     >

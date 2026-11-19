@@ -213,7 +213,17 @@ export default function ElderSimpleViewPage() {
       if (profRes.ok) {
         const profData: ElderProfile = await profRes.json();
         setProfile(profData);
-        setTextSize(profData.text_size ?? 1);
+        if (typeof profData.text_size === "number" && profData.text_size !== textSize) {
+          setTextSize(profData.text_size);
+        }
+        // Bi-directional language sync: if caregiver or hardware changed language, sync elder screen locale
+        if (
+          profData.language &&
+          (profData.language === "hi" || profData.language === "en") &&
+          profData.language !== locale
+        ) {
+          router.push(`/${profData.language}/elder`);
+        }
         localStorage.setItem("aira_elder_profile", JSON.stringify(profData));
       } else if (!navigator.onLine) {
         const cachedProf = localStorage.getItem("aira_elder_profile");
@@ -272,7 +282,29 @@ export default function ElderSimpleViewPage() {
     const pollInterval = setInterval(() => {
       fetchElderData();
     }, 3000);
-    return () => clearInterval(pollInterval);
+
+    const handleProfileUpdate = () => {
+      fetchElderData();
+    };
+    window.addEventListener("aira:profile-updated", handleProfileUpdate);
+
+    let bc: BroadcastChannel | null = null;
+    try {
+      bc = new BroadcastChannel("aira_sync");
+      bc.onmessage = (event) => {
+        if (event.data?.type === "profile_updated") {
+          fetchElderData();
+        }
+      };
+    } catch {
+      // Ignored
+    }
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("aira:profile-updated", handleProfileUpdate);
+      if (bc) bc.close();
+    };
   }, [fetchElderData]);
 
   // Clean up sirens when navigating away
@@ -313,6 +345,16 @@ export default function ElderSimpleViewPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ text_size: newSize }),
         });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("aira:profile-updated"));
+          try {
+            const bc = new BroadcastChannel("aira_sync");
+            bc.postMessage({ type: "profile_updated" });
+            bc.close();
+          } catch {
+            // Ignored
+          }
+        }
       } catch {
         // Ignored
       }
@@ -320,8 +362,29 @@ export default function ElderSimpleViewPage() {
   };
 
   // Switch Language
-  const handleSwitchLanguage = (targetLocale: string) => {
+  const handleSwitchLanguage = async (targetLocale: string) => {
     if (targetLocale === locale) return;
+    if (navigator.onLine) {
+      try {
+        await fetch("/api/v1/elders/me/preferences", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ language: targetLocale }),
+        });
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("aira:profile-updated"));
+          try {
+            const bc = new BroadcastChannel("aira_sync");
+            bc.postMessage({ type: "profile_updated" });
+            bc.close();
+          } catch {
+            // Ignored
+          }
+        }
+      } catch {
+        // Ignored
+      }
+    }
     router.push(`/${targetLocale}/elder`);
   };
 
