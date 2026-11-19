@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: aira-api
+    runtime: python
+    rootDir: apps/api
+    buildCommand: "pip install --upgrade pip && pip install -e ."
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: AUTO_SEED_ON_STARTUP
+        value: "true"
+      - key: WEB_ORIGIN
+        value: "*"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: APP_ENCRYPTION_KEY
+        generateValue: true
