@@ -10,7 +10,7 @@ Fully Synchronized with AIRA Webapp (FastAPI + Next.js):
      - Safety-Critical Emergency SOS (/api/v1/elders/me/sos).
   2. Scheduled Medicine Alarms & 3-in-1 Confirmation System:
      - Plays gentle alarm chime at scheduled dose time.
-     - Speaks warm reminder on Stone 620: medicine name, strength & instructions.
+     - Speaks warm reminder on Mivi Play: medicine name, strength & instructions.
      - Auto-listens for 7 seconds to hear confirmation ("हाँ ले ली" / "Yes").
      - Also supports manual [Enter] push-to-talk confirmation anytime.
      - Automatically marks dose TAKEN in webapp (instant green checkmark!).
@@ -22,7 +22,7 @@ Fully Synchronized with AIRA Webapp (FastAPI + Next.js):
      - Real-time webapp context injection into AI personality.
   4. Audio Hardware:
      - AUX Microphone on USB Sound Card (44100 Hz / ALSA auto-rate).
-     - Stone 620 Bluetooth Speaker via edge-tts (Swara Neural) with silence padding.
+     - Mivi Play Bluetooth Speaker via edge-tts (Swara Neural) with silence padding.
 """
 
 from __future__ import annotations
@@ -819,7 +819,7 @@ class AiraChatBot:
 class MedicineAlarmDaemon:
     """
     Background daemon for scheduled medicine alarms:
-      1. Plays chime & announces reminder over Stone 620 speaker.
+      1. Plays chime & announces reminder over Mivi Play speaker.
       2. Opens mic for 7 seconds to auto-listen for voice confirmation ("हाँ ले ली").
       3. Automatically marks dose TAKEN in the webapp (instant green checkmark!).
       4. Re-prompts gently every 5 minutes if unconfirmed.
@@ -926,7 +926,7 @@ class MedicineAlarmDaemon:
         # 1. Play gentle audio chime
         generate_and_play_alarm_chime(sink=self.sink)
 
-        # 2. Voice announcement over Stone 620
+        # 2. Voice announcement over Mivi Play
         if is_reprompt:
             reminder_text = (
                 f"नमस्ते {elder_name}, एक ज़रूरी याददिहानी: क्या आपने अपनी {time_display} बजे की दवा '{med_name}' ले ली है? "
@@ -1009,7 +1009,7 @@ def run_chat_loop(
     print("\n" + "=" * 68)
     print("🌸 AIRA Professional Voice Companion & Webapp Hardware Node")
     print(f"   Input Mic    : [{input_dev}] {dev_name}")
-    print(f"   Output TTS   : Voice '{voice}' (hi-IN-SwaraNeural on Stone 620)")
+    print(f"   Output TTS   : Voice '{voice}' (hi-IN-SwaraNeural on Mivi Play)")
     print(f"   AI Engine    : {bot.get_engine_name()}")
     print(f"   Webapp Sync  : {'🟢 Connected' if synced else '🟠 Offline Cache'} ({client.base_url})")
     print(f"   Elder Profile: {elder_name} (Code: {client.access_code})")

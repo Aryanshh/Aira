@@ -26,7 +26,7 @@ Test order: speaker first, then microphone level, then the full wake-and-reply l
 | Item | Detail | Status |
 |---|---|---|
 | Computer | Raspberry Pi 3B+ (hostname `Aira`, login user `main`) | Running |
-| Speaker | Bluetooth speaker shown as **"Stone 620"** | Paired and connected in `bluetoothctl` |
+| Speaker | Bluetooth speaker: **Mivi Play** (or **Stone 620**) | Auto-detected & paired via `bluetoothctl` / `connect_mivi_play.py` |
 | Microphone | 3.5mm AUX microphone connected via **USB sound card (pink mic jack)** | Connected & Ready |
 | Voice Models | Female Hindi/Hinglish (`swara`), Female Indian English (`neerja`), Offline (`priyamvada`, `espeak-hi`) | Configured in `aira_tts.py` |
 | Wake-Word Chat Loop | "Hey Aira" -> "हाँ जी, बताइए?" -> User query -> Caring response | Ready (`aira_chat.py` / `aira_audio_test.py chat`) |

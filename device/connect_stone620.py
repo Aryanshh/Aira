@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 AIRA Audio Connect Helper
-Connects the 'Stone 620' Bluetooth speaker, sets it as the default output sink,
+Connects Bluetooth speaker (Mivi Play / Stone 620), sets it as default output sink,
 and verifies the USB soundcard microphone.
 """
 
@@ -14,17 +14,17 @@ import sys
 import time
 
 try:
-    from aira_tts import auto_connect_stone620, find_stone620_sink, speak
+    from aira_tts import auto_connect_speaker, find_bluetooth_sink, speak
 except ImportError:
-    auto_connect_stone620 = None
-    find_stone620_sink = None
+    auto_connect_speaker = None
+    find_bluetooth_sink = None
     speak = None
 
 
 def main() -> None:
-    print("=" * 60)
-    print("🔊 AIRA Hardware Audio Setup (Stone 620 + USB Mic)")
-    print("=" * 60)
+    print("=" * 62)
+    print("🔊 AIRA Hardware Audio Setup (Mivi Play / Bluetooth Speaker + USB Mic)")
+    print("=" * 62)
 
     # 1. Check USB Microphone
     print("\n[1/3] Checking USB Microphone...")
@@ -44,28 +44,34 @@ def main() -> None:
     except Exception as e:
         print(f"  ⚠️ Could not inspect audio input: {e}")
 
-    # 2. Connect Stone 620
-    print("\n[2/3] Connecting to Stone 620 Bluetooth Speaker...")
+    # 2. Connect Bluetooth Speaker
+    print("\n[2/3] Connecting to Bluetooth Speaker (Mivi Play / Stone 620)...")
     sink = None
-    if auto_connect_stone620:
-        sink = auto_connect_stone620()
+    if auto_connect_speaker:
+        sink = auto_connect_speaker(preferred_keywords=("mivi play", "mivi", "stone 620", "stone"))
     else:
-        # Direct fallback
+        # Fallback direct bluetoothctl check
         res = subprocess.run(["bluetoothctl", "devices"], capture_output=True, text=True)
         mac = None
-        for line in res.stdout.splitlines():
-            if "stone 620" in line.lower() or "stone" in line.lower():
-                parts = line.split()
-                if len(parts) >= 3 and parts[0] == "Device":
-                    mac = parts[1]
-                    break
+        speaker_name = "Mivi Play"
+        for keyword in ("mivi play", "mivi", "stone 620", "stone"):
+            for line in res.stdout.splitlines():
+                if keyword in line.lower():
+                    parts = line.split()
+                    if len(parts) >= 3 and parts[0] == "Device":
+                        mac = parts[1]
+                        speaker_name = " ".join(parts[2:])
+                        break
+            if mac:
+                break
+
         if mac:
-            print(f"  Connecting to {mac}...")
-            subprocess.run(["bluetoothctl", "connect", mac], capture_output=True, text=True, timeout=10)
+            print(f"  Connecting to {speaker_name} ({mac})...")
+            subprocess.run(["bluetoothctl", "connect", mac], capture_output=True, text=True, timeout=12)
             time.sleep(2)
 
-    # 3. Verify PipeWire sink
-    print("\n[3/3] Setting Stone 620 as Default Audio Output...")
+    # 3. Verify PipeWire sink & set as default
+    print("\n[3/3] Setting Bluetooth Speaker as Default Audio Output...")
     try:
         p = subprocess.run(["pactl", "list", "short", "sinks"], capture_output=True, text=True)
         target_sink = None
@@ -80,22 +86,22 @@ def main() -> None:
             subprocess.run(["pactl", "set-sink-volume", target_sink, "85%"], check=True)
             print(f"  ✅ Default Sink set to: {target_sink} (Volume: 85%)")
         else:
-            print("  ⚠️ Stone 620 Bluetooth sink not yet visible. Make sure the speaker is ON and paired.")
+            print("  ⚠️ Bluetooth sink not yet visible. Make sure the speaker is ON and paired.")
     except Exception as e:
         print(f"  ⚠️ pactl error: {e}")
 
-    # 4. Speak confirmation through Stone 620
-    print("\n📢 Playing confirmation audio through Stone 620...")
-    confirmation_text = "नमस्ते! आपका स्टोन 620 स्पीकर और यूएसबी माइक तैयार हैं।"
+    # 4. Speak confirmation through Speaker
+    print("\n📢 Playing confirmation audio through speaker...")
+    confirmation_text = "नमस्ते! आपका स्पीकर और यूएसबी माइक तैयार हैं।"
     if speak:
         speak(confirmation_text, voice_key="swara")
     else:
         subprocess.run(["espeak-ng", "-v", "hi+f3", "-s", "145", confirmation_text])
 
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 62)
     print("✨ Audio setup complete!")
-    print("👉 Now simply run: python device/aira_chat.py")
-    print("=" * 60 + "\n")
+    print("👉 Now start AIRA: python device/aira_chat.py")
+    print("=" * 62 + "\n")
 
 
 if __name__ == "__main__":

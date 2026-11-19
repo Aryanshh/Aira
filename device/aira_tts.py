@@ -8,7 +8,7 @@ Supports:
   4. Female Hindi (Fallback): "hi+f3" (espeak-ng offline, 0MB RAM)
   5. Female Eng-IN (Fallback): "en-in+f2" (espeak-ng offline, 0MB RAM)
 
-Includes Bluetooth speaker silence padding (0.6s lead, 0.4s tail) so Bluetooth sinks (like Stone 620)
+Includes Bluetooth speaker silence padding (0.6s lead, 0.4s tail) so Bluetooth sinks (like Mivi Play or Stone 620)
 do not clip initial syllables.
 """
 
@@ -61,8 +61,8 @@ DEFAULT_TMP_WAV = "/tmp/aira_tts_output.wav"
 DEFAULT_PAD_WAV = "/tmp/aira_tts_padded.wav"
 
 
-def find_stone620_sink() -> str | None:
-    """Finds active Bluetooth sink (Stone 620 / bluez_output)."""
+def find_bluetooth_sink() -> str | None:
+    """Finds active Bluetooth sink (Mivi Play / Stone 620 / bluez_output)."""
     if not shutil.which("pactl"):
         return None
     try:
@@ -76,9 +76,9 @@ def find_stone620_sink() -> str | None:
     return None
 
 
-def auto_connect_stone620() -> str | None:
-    """Auto-connects to Stone 620 via bluetoothctl if disconnected, and sets as default sink."""
-    sink = find_stone620_sink()
+def auto_connect_speaker(preferred_keywords: tuple[str, ...] = ("mivi play", "mivi", "stone 620", "stone")) -> str | None:
+    """Auto-connects to Mivi Play (or paired speaker) via bluetoothctl if disconnected, and sets as default sink."""
+    sink = find_bluetooth_sink()
     if sink:
         return sink
 
@@ -88,26 +88,39 @@ def auto_connect_stone620() -> str | None:
     try:
         res = subprocess.run(["bluetoothctl", "devices"], capture_output=True, text=True, check=True)
         mac = None
-        for line in res.stdout.splitlines():
-            if "stone 620" in line.lower() or "stone" in line.lower():
-                parts = line.split()
-                if len(parts) >= 3 and parts[0] == "Device":
-                    mac = parts[1]
-                    break
+        speaker_name = "Mivi Play"
+
+        # Search for Mivi Play first, then Stone, then any bluetooth audio device
+        for keyword in preferred_keywords:
+            for line in res.stdout.splitlines():
+                if keyword in line.lower():
+                    parts = line.split()
+                    if len(parts) >= 3 and parts[0] == "Device":
+                        mac = parts[1]
+                        speaker_name = " ".join(parts[2:])
+                        break
+            if mac:
+                break
+
         if mac:
-            print(f"📡 Connecting to Stone 620 ({mac})...")
-            subprocess.run(["bluetoothctl", "connect", mac], capture_output=True, text=True, timeout=10)
+            print(f"📡 Connecting to {speaker_name} ({mac})...")
+            subprocess.run(["bluetoothctl", "connect", mac], capture_output=True, text=True, timeout=12)
             time.sleep(2)
-            sink = find_stone620_sink()
+            sink = find_bluetooth_sink()
             if sink:
                 subprocess.run(["pactl", "set-default-sink", sink], check=False)
                 subprocess.run(["pactl", "set-sink-volume", sink, "85%"], check=False)
-                print(f"🔊 Stone 620 connected as default audio sink: {sink}")
+                print(f"🔊 {speaker_name} connected as default audio sink: {sink}")
                 return sink
     except Exception as e:
-        print(f"Notice: Stone 620 Bluetooth connect check: {e}", file=sys.stderr)
+        print(f"Notice: Bluetooth speaker connect check: {e}", file=sys.stderr)
 
-    return find_stone620_sink()
+    return find_bluetooth_sink()
+
+
+# Aliases for backwards compatibility
+find_stone620_sink = find_bluetooth_sink
+auto_connect_stone620 = auto_connect_speaker
 
 
 def pad_wav(src_path: str, dst_path: str, lead_sec: float = 0.6, tail_sec: float = 0.4) -> None:
@@ -131,8 +144,8 @@ def pad_wav(src_path: str, dst_path: str, lead_sec: float = 0.6, tail_sec: float
 
 
 def play_audio(wav_path: str, sink: str | None = None) -> None:
-    """Plays audio through PipeWire/Pulse (paplay) or ALSA (aplay), prioritizing Stone 620."""
-    target_sink = sink or auto_connect_stone620()
+    """Plays audio through PipeWire/Pulse (paplay) or ALSA (aplay), prioritizing Mivi Play / Bluetooth."""
+    target_sink = sink or auto_connect_speaker()
 
     if shutil.which("paplay"):
         cmd = ["paplay"]
