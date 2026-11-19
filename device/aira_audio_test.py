@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import queue
 import re
@@ -17,6 +18,11 @@ import subprocess
 import sys
 import time
 import wave
+
+try:
+    import audioop
+except ImportError:
+    audioop = None
 
 try:
     import numpy as np
@@ -37,23 +43,74 @@ try:
 except ImportError:
     tts_speak = None
 
+try:
+    from aira_chat import AiraChatBot, run_chat_loop as aira_chat_run_loop
+except ImportError:
+    AiraChatBot = None
+    aira_chat_run_loop = None
+
+def get_best_vosk_model_path(requested: str | None = None) -> str:
+    """Auto-detects the best available Vosk model."""
+    if requested and os.path.exists(requested):
+        return requested
+    env_m = os.environ.get("AIRA_VOSK_MODEL")
+    if env_m and os.path.exists(env_m):
+        return env_m
+
+    candidates = [
+        os.path.expanduser("~/aira/models/vosk-model-small-hi-0.22"),
+        os.path.expanduser("~/aira/models/vosk-model-small-en-in-0.4"),
+        os.path.expanduser("~/aira/models/vosk-model-small-en-us-0.15"),
+        os.path.expanduser("~/Desktop/vosk-model-small-hi-0.22"),
+        os.path.expanduser("~/Desktop/vosk-model-small-en-in-0.4"),
+        os.path.expanduser("~/Desktop/vosk-model-small-en-us-0.15"),
+    ]
+    for c in candidates:
+        if os.path.isdir(c):
+            return c
+    return candidates[0]
+
+
 TARGET_RATE = 16000
-DEFAULT_MODEL = os.environ.get(
-    "AIRA_VOSK_MODEL",
-    os.path.expanduser("~/aira/models/vosk-model-small-en-us-0.15"),
-)
+DEFAULT_MODEL = get_best_vosk_model_path()
 DEFAULT_REPLY = "नमस्ते! आपकी दोपहर की दवा तैयार है, क्या आपने खाना खा लिया?"
 DEFAULT_VOICE = "swara"
 
-HEADS = ["hey", "hay", "hi", "hello", "ok", "okay", "namaste", "suno", "arey"]
+# Wake-word phonetic variations (English, Hinglish & Devanagari Hindi)
+HEADS = ["hey", "hay", "hi", "hello", "ok", "okay", "namaste", "suno", "arey", "he", "oye", "ha"]
 STRONG_NAMES = ["aira", "airah", "ayra", "eira", "aaira"]
-NAMES = STRONG_NAMES + ["ira", "era", "aria", "arya", "aera", "ayara"]
+NAMES = STRONG_NAMES + ["ira", "era", "aria", "arya", "aera", "ayara", "area", "added", "ida"]
+DEVANAGARI_WAKE = [
+    "आइरा", "आयरा", "ऐरा", "इरा", "ईरा", "एरा", "आएरा", "अयरा", "एयरा", "अइरा", "आरा", "एयर",
+    "हे आइरा", "नमस्ते आइरा", "सुनो आइरा", "हाय आइरा", "है आइरा", "हेलो आइरा",
+    "नमस्ते", "नमस्कार", "सुनो", "हेलो", "हलो", "प्रणाम",
+]
 
 
 def heard_wake_word(text: str) -> bool:
-    """Fuzzy matching for 'Hey Aira' and colloquial variations."""
-    cleaned = re.sub(r"[^a-zA-Z\s]", " ", text.lower())
-    # Handle split syllables like 'i ra' or 'ay ra'
+    """Fuzzy matching for 'Hey Aira' in English, Hinglish, and Devanagari Hindi."""
+    raw = text.strip()
+    if not raw:
+        return False
+
+    # Check 1: Devanagari Hindi direct keywords & compounds
+    for w in DEVANAGARI_WAKE:
+        if w in raw:
+            return True
+
+    # Check 2: Devanagari phonetic combinations (e.g. "है" + "आइरा" / "हे" + "आयरा")
+    deva_heads = ["हे", "हाय", "है", "हलो", "हेलो", "नमस्ते", "नमस्कार", "सुनो", "अरे", "ओ"]
+    deva_names = ["आइरा", "आयरा", "ऐरा", "इरा", "ईरा", "एरा", "आएरा", "अयरा", "एयरा", "अइरा", "आरा", "एयर"]
+    tokens_deva = raw.split()
+    for tok in tokens_deva:
+        if tok in deva_names:
+            return True
+    for i, tok in enumerate(tokens_deva):
+        if tok in deva_heads and i + 1 < len(tokens_deva) and tokens_deva[i + 1] in deva_names:
+            return True
+
+    # Check 3: English / Hinglish Latin words
+    cleaned = re.sub(r"[^a-zA-Z\s]", " ", raw.lower())
     cleaned = re.sub(r"\b(i|ay|ai)\s+(ra|rah)\b", "aira", cleaned)
     tokens = [w for w in cleaned.split() if w]
 
@@ -61,15 +118,50 @@ def heard_wake_word(text: str) -> bool:
         return False
 
     for i, tok in enumerate(tokens):
-        # 1. Any strong name standalone ("aira")
         if tok in STRONG_NAMES:
             return True
-        # 2. Head word + any name ("hey aira", "namaste aira", "hi aria")
         if tok in HEADS and i + 1 < len(tokens):
             if tokens[i + 1] in NAMES:
                 return True
+            if tokens[i + 1].startswith("air") or tokens[i + 1].startswith("ayr"):
+                return True
 
     return False
+
+
+def check_manual_wake_trigger() -> bool:
+    """Non-blocking check if user pressed Enter or Space in terminal to trigger wake."""
+    try:
+        if sys.platform != "win32":
+            import select
+            if sys.stdin in select.select([sys.stdin], [], [], 0.0)[0]:
+                sys.stdin.readline()
+                return True
+        else:
+            import msvcrt
+            if msvcrt.kbhit():
+                ch = msvcrt.getch()
+                if ch in (b"\r", b"\n", b" "):
+                    return True
+    except Exception:
+        pass
+    return False
+
+
+def ensure_alsa_mic_volume() -> None:
+    """Best-effort ALSA mixer volume un-mute and boost for USB card on Linux."""
+    if sys.platform == "win32" or not shutil.which("amixer"):
+        return
+    for card in (2, 1, 0, "Device", "Audio"):
+        try:
+            for ctrl in ("Mic", "Capture", "Internal Mic"):
+                subprocess.run(
+                    ["amixer", "-c", str(card), "sset", ctrl, "100%", "unmute"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+        except Exception:
+            pass
 
 
 def find_usb_input_device(hint: str | int | None = None) -> int | str | None:
@@ -252,82 +344,112 @@ def get_date_string_hindi() -> str:
         7: "जुलाई", 8: "अगस्त", 9: "सितंबर", 10: "अक्टूबर", 11: "नवंबर", 12: "दिसंबर",
     }
     weekday = days.get(now.weekday(), "")
-    month_name = months.get(now.month(), "")
+    month_name = months.get(now.month, "")
     return f"आज {weekday}, {now.day} {month_name} है।"
 
 
 def handle_local_intent(query: str) -> str:
-    """Empathetic, local, zero-latency elder-care response engine."""
+    """
+    Empathetic, local, zero-latency elder-care response engine.
+    Supports both Devanagari Hindi and Romanized Hinglish/English keywords.
+    """
     import random
     q = query.lower().strip()
 
     # 1. Critical Emergency / SOS / Immediate Distress
-    if any(k in q for k in ("help", "bachao", "emergency", "madad", "gir gay", "chhati", "chest", "heart", "behosh", "accident")):
+    if any(k in q for k in (
+        "help", "bachao", "emergency", "madad", "gir", "chhati", "chest", "heart", "behosh", "accident",
+        "मदद", "बचाओ", "इमरजेंसी", "गिर", "छाती", "दिल", "बेहोश", "तबीयत खराब", "सांस"
+    )):
         return (
             "घबराइए मत! मैं तुरंत आपके परिवार और केयरगिवर को अलर्ट भेज रही हूँ। "
             "आप आराम से एक जगह बैठ जाइए और गहरी साँस लीजिए।"
         )
 
     # 2. Medicine / Schedule
-    if any(k in q for k in ("dawa", "dawai", "medicine", "tablet", "goli", "khurak", "schedule")):
+    if any(k in q for k in (
+        "dawa", "dawai", "medicine", "tablet", "goli", "khurak", "schedule",
+        "दवा", "दवाई", "गोली", "खुराक", "मेडिसिन", "दवाइयां"
+    )):
         return (
             "आपकी दोपहर की दवा का समय हो चुका है। "
             "कृपया एक गिलास ताज़ा पानी के साथ समय पर अपनी दवा ज़रूर ले लीजिए।"
         )
 
     # 3. Symptoms / Aches & Health Complaints
-    if any(k in q for k in ("headache", "sar dard", "sir dard", "bukhar", "fever", "chakkar", "thakan", "tired", "dard", "pain", "kamar", "ghutn")):
+    if any(k in q for k in (
+        "headache", "sar dard", "sir dard", "bukhar", "fever", "chakkar", "thakan", "tired", "dard", "pain", "kamar", "ghutn",
+        "सर दर्द", "सिर दर्द", "बुखार", "चक्कर", "थकान", "कमर दर्द", "घुटने", "दर्द"
+    )):
         return (
             "अरे, आप थोड़ा पानी पीकर आराम कर लीजिए। "
             "अगर बेचैनी या दर्द ज़्यादा महसूस हो तो मुझे बताइए, मैं परिवार को सूचित कर दूँगी।"
         )
 
-    if any(k in q for k in ("bp", "blood pressure", "sugar", "diabetes")):
+    if any(k in q for k in (
+        "bp", "blood pressure", "sugar", "diabetes",
+        "ब्लड प्रेशर", "बीपी", "शुगर", "डायबिटीज"
+    )):
         return (
             "अपना ब्लड प्रेशर और शुगर नियमित रूप से मापते रहें। "
             "तनाव बिल्कुल न लें, समय पर पौष्टिक खाना खाएँ और डॉक्टर की सलाह का पालन करें।"
         )
 
     # 4. Time & Date
-    if any(k in q for k in ("time", "samay", "baje", "kitna time", "ghadi")):
+    if any(k in q for k in (
+        "time", "samay", "baje", "kitna time", "ghadi",
+        "समय", "टाइम", "बजे", "कितने बजे", "घड़ी"
+    )):
         return get_time_string_hindi()
 
-    if any(k in q for k in ("tarikh", "date", "din", "aaj kya hai")):
+    if any(k in q for k in (
+        "tarikh", "date", "din", "aaj kya hai",
+        "तारीख", "दिनांक", "दिन", "आज क्या दिन"
+    )):
         return get_date_string_hindi()
 
     # 5. Jokes & Fun
-    if any(k in q for k in ("joke", "chutkula", "hasao", "kuch sunao", "kahani")):
+    if any(k in q for k in (
+        "joke", "chutkula", "hasao", "kuch sunao", "kahani",
+        "जोक", "चुटकुला", "हंसाओ", "कुछ सुनाओ", "कहानी"
+    )):
         return random.choice(HINDI_JOKES)
 
     # 6. Loneliness / Boredom
-    if any(k in q for k in ("bore", "boring", "akele", "mann nahi", "mann kharab", "akela")):
+    if any(k in q for k in (
+        "bore", "boring", "akele", "mann nahi", "mann kharab", "akela",
+        "बोर", "अकेले", "मन नहीं लग रहा", "उदास"
+    )):
         return (
             "मैं हमेशा आपके साथ हूँ! आप बिल्कुल अकेले नहीं हैं। "
             "क्या आप कोई पुराना किस्सा या भजन सुनना पसंद करेंगे?"
         )
 
     # 7. Meal / Appetite
-    if any(k in q for k in ("khana", "lunch", "dinner", "breakfast", "nashta", "bhookh", "chai")):
+    if any(k in q for k in (
+        "khana", "lunch", "dinner", "breakfast", "nashta", "bhookh", "chai",
+        "खाना", "लंच", "डिनर", "नाश्ता", "भूख", "चाय", "रोटी"
+    )):
         return (
             "समय पर हल्का और ताज़ा भोजन करना सेहत के लिए बहुत ज़रूरी है। "
             "क्या आपने आज का खाना और पानी अच्छे से लिया?"
         )
 
     # 8. Greetings & Daily Pleasantries
-    if any(k in q for k in ("good morning", "suprabhat", "subah")):
+    if any(k in q for k in ("good morning", "suprabhat", "subah", "सुप्रभात", "सुबह")):
         return "सुप्रभात! आपका आज का दिन बहुत सुखद और मंगलमय रहे। क्या आपने सुबह की चाय या दूध ले लिया?"
 
-    if any(k in q for k in ("good night", "shubh ratri", "so raha", "sone ja")):
+    if any(k in q for k in ("good night", "shubh ratri", "so raha", "sone ja", "शुभ रात्रि", "सोने")):
         return "शुभ रात्रि! निश्चिंत होकर आराम से सोइए। कोई भी ज़रूरत हो तो बस 'हे आइरा' बोल दीजिएगा, मैं यहीं हूँ।"
 
-    if any(k in q for k in ("who are you", "tum kaun ho", "kya ho", "aap kaun ho", "naam")):
+    if any(k in q for k in ("who are you", "tum kaun ho", "kya ho", "aap kaun ho", "naam", "तुम कौन हो", "आप कौन हो", "नाम क्या है")):
         return "मैं आइरा हूँ, आपकी निजी सेहत और देखभाल की साथी। दवा की याद दिलाने से लेकर आपसे बातें करने तक, मैं हमेशा आपके साथ हूँ!"
 
-    if any(k in q for k in ("kaise ho", "kaisa chal", "how are you", "theek ho")):
-        return "मैं बिल्कुल ठीक हूँ जी! आप बताइए, आपकी सेहत कैसी है और आज आपका मन कैसा है?"
+    if any(k in q for k in ("kaise ho", "kaisa chal", "how are you", "theek ho", "namaste", "pranam", "नमस्ते", "प्रणाम", "कैसे हो", "कैसी हो", "क्या हाल")):
+        return "नमस्ते जी! मैं बिल्कुल ठीक हूँ। आप बताइए, आपकी सेहत कैसी है और आज आपका मन कैसा है?"
 
-    if any(k in q for k in ("namaste", "hello", "hi", "pranam", "radhe", "ram ram")):
-        return "नमस्ते जी! प्रणाम। आज मैं आपकी क्या मदद कर सकती हूँ?"
+    if any(k in q for k in ("radhe", "ram ram", "जय श्री राम", "राधे राधे")):
+        return "जय श्री राम! राधे राधे जी। आपका दिन बहुत शुभ और आनंदमय हो।"
 
     if any(k in q for k in ("dhanyawad", "thank you", "thanks", "shukriya")):
         return "अरे, इसमें धन्यवाद की कोई बात नहीं! आपकी सेवा और साथ देना ही मेरा काम है।"
@@ -356,59 +478,102 @@ def cmd_chat_loop(
         print("Please download it as specified in AIRA_RaspberryPi_Setup_Context.md", file=sys.stderr)
         return
 
+    ensure_alsa_mic_volume()
     chosen_dev = parse_device(device)
     dev_info = sd.query_devices(chosen_dev, "input")
     dev_name = dev_info.get("name", "Default")
+
+    bot = AiraChatBot(gemini_key=gemini_key, openai_key=openai_key) if AiraChatBot else None
+    engine_name = bot.get_engine_name() if bot else "Local Elder-Care Engine (Offline)"
 
     audio_q: queue.Queue[bytes] = queue.Queue()
     stream, mode_desc = create_clean_mic_stream(chosen_dev, audio_q)
 
     print("\n" + "=" * 65)
-    print("🌸 AIRA Voice Companion Ready")
+    print("🌸 AIRA Full-Scale Conversational Voice Companion")
     print(f"   Input Mic  : [{chosen_dev}] {dev_name} ({mode_desc})")
-    print(f"   Output TTS : Voice '{voice}' (Stone 620 Bluetooth/Default)")
+    print(f"   Output TTS : Voice '{voice}' (hi-IN-SwaraNeural on Stone 620)")
+    print(f"   AI Engine  : {engine_name}")
     print("=" * 65)
-    print("👉 Say: 'Hey Aira' (or 'Aira', 'Namaste Aira') to begin chatting!\n")
+    print("👉 Say: 'Hey Aira' (or 'Aira', 'Namaste Aira', 'नमस्ते', 'सुनो') to begin chatting!")
+    print("👉 Or press [ENTER] in this terminal anytime to speak immediately!\n")
 
     print(f"⏳ Loading Vosk speech model from {model_path}...")
     model = Model(model_path)
 
     while True:
         try:
-            # STATE 1: Passive Wake Word
-            print("👂 Listening for 'Hey Aira'...")
+            # STATE 1: Passive Wake Word with Live VU Meter
+            print("👂 Listening for 'Hey Aira' (or 'नमस्ते', 'Aira', 'सुनो')...")
             recognizer = KaldiRecognizer(model, TARGET_RATE)
             stream.start()
             try:
                 wake_detected = False
+                last_display_time = 0.0
+                last_heard = ""
+
                 while not wake_detected:
-                    data = audio_q.get()
+                    if check_manual_wake_trigger():
+                        print(f"\n🎯 [Manual Wake Triggered via Enter key!]")
+                        wake_detected = True
+                        break
+
+                    try:
+                        data = audio_q.get(timeout=0.08)
+                    except queue.Empty:
+                        continue
+
+                    if audioop:
+                        rms = audioop.rms(data, 2)
+                    else:
+                        samples = np.frombuffer(data, dtype=np.int16).astype(float)
+                        rms = int(np.sqrt(np.mean(samples**2))) if len(samples) > 0 else 0
+
+                    norm_db = 20 * math.log10(max(1, rms) / 32768.0)
+                    bars = max(0, min(8, int((norm_db + 50) / 5.0)))
+                    meter = "█" * bars + "░" * (8 - bars)
+
                     if recognizer.AcceptWaveform(data):
                         res = json.loads(recognizer.Result())
-                        heard_text = res.get("text", "")
-                        if heard_text and heard_wake_word(heard_text):
-                            wake_detected = True
-                            print(f"\n🎯 [Wake Word Detected in Full]: '{heard_text}'")
+                        heard_text = res.get("text", "").strip()
+                        if heard_text:
+                            last_heard = heard_text
+                            if heard_wake_word(heard_text):
+                                wake_detected = True
+                                print(f"\n🎯 [Wake Word Detected in Full]: '{heard_text}'")
+                                break
                     else:
-                        partial = json.loads(recognizer.PartialResult()).get("partial", "")
+                        partial = json.loads(recognizer.PartialResult()).get("partial", "").strip()
                         if partial:
-                            sys.stdout.write(f"\r[Standby...]: {partial:<40}")
-                            sys.stdout.flush()
+                            last_heard = partial
                             if heard_wake_word(partial):
                                 wake_detected = True
                                 print(f"\n🎯 [Wake Word Detected in Partial]: '{partial}'")
+                                break
+
+                    now = time.time()
+                    if now - last_display_time > 0.08:
+                        last_display_time = now
+                        disp = f"Hearing: '{last_heard}'" if last_heard else "Listening... (Say 'Hey Aira' or 'नमस्ते')"
+                        if len(disp) > 42:
+                            disp = disp[:39] + "..."
+                        sys.stdout.write(f"\r👂 [{meter} {norm_db:3.0f}dB] {disp:<45}")
+                        sys.stdout.flush()
             finally:
                 stream.stop()
 
             # STATE 2: Acknowledgment Prompt (Mic Muted)
             ack_prompt = "हाँ जी, बताइए?" if voice in ("swara", "priyamvada", "espeak-hi") else "Yes, I'm listening!"
-            print(f"🗣️  AIRA: \"{ack_prompt}\"")
+            print(f"\n🗣️  AIRA: \"{ack_prompt}\"")
             speak(ack_prompt, voice=voice, sink=sink)
 
             while not audio_q.empty():
-                audio_q.get_nowait()
+                try:
+                    audio_q.get_nowait()
+                except queue.Empty:
+                    break
 
-            # STATE 3: Query Speech Capture
+            # STATE 3: Query Speech Capture with Live VU Meter
             print("🎤 Listening to your query (Speak now)...")
             query_recognizer = KaldiRecognizer(model, TARGET_RATE)
             user_query = ""
@@ -416,28 +581,50 @@ def cmd_chat_loop(
             speech_detected_time = None
             max_wait_sec = 8.0
             silence_timeout_sec = 1.6
+            last_display_time = 0.0
+            live_text = ""
 
             stream.start()
             try:
                 while time.time() - start_time < max_wait_sec:
                     try:
-                        data = audio_q.get(timeout=0.1)
+                        data = audio_q.get(timeout=0.08)
                     except queue.Empty:
                         continue
+
+                    if audioop:
+                        rms = audioop.rms(data, 2)
+                    else:
+                        samples = np.frombuffer(data, dtype=np.int16).astype(float)
+                        rms = int(np.sqrt(np.mean(samples**2))) if len(samples) > 0 else 0
+
+                    norm_db = 20 * math.log10(max(1, rms) / 32768.0)
+                    bars = max(0, min(8, int((norm_db + 50) / 5.0)))
+                    meter = "█" * bars + "░" * (8 - bars)
 
                     if query_recognizer.AcceptWaveform(data):
                         res = json.loads(query_recognizer.Result())
                         t = res.get("text", "").strip()
                         if t:
-                            print(f"\n   [Heard]: \"{t}\"")
                             user_query = f"{user_query} {t}".strip()
+                            live_text = user_query
                             speech_detected_time = time.time()
                     else:
                         partial = json.loads(query_recognizer.PartialResult()).get("partial", "").strip()
                         if partial:
-                            sys.stdout.write(f"\r   Listening: \"{partial}\"    ")
-                            sys.stdout.flush()
+                            live_text = f"{user_query} {partial}".strip()
                             speech_detected_time = time.time()
+
+                    now = time.time()
+                    if now - last_display_time > 0.08:
+                        last_display_time = now
+                        elapsed_silence = (now - speech_detected_time) if speech_detected_time else 0.0
+                        disp = f"\"{live_text}\"" if live_text else "Waiting for your voice..."
+                        if len(disp) > 38:
+                            disp = disp[:35] + "..."
+                        sil_str = f" [Sil: {elapsed_silence:0.1f}s]" if speech_detected_time else ""
+                        sys.stdout.write(f"\r🎤 [{meter} {norm_db:3.0f}dB] {disp:<38}{sil_str}")
+                        sys.stdout.flush()
 
                     if speech_detected_time and (time.time() - speech_detected_time > silence_timeout_sec):
                         print("\n   [End of speech detected]")
@@ -460,12 +647,15 @@ def cmd_chat_loop(
             print(f"👤 User: \"{user_query}\"")
 
             # STATE 4 & 5: Generate & Speak Response
-            reply = handle_local_intent(user_query)
+            reply = bot.reply(user_query) if bot else handle_local_intent(user_query)
             print(f"🌸 AIRA: \"{reply}\"\n")
             speak(reply, voice=voice, sink=sink)
 
             while not audio_q.empty():
-                audio_q.get_nowait()
+                try:
+                    audio_q.get_nowait()
+                except queue.Empty:
+                    break
             time.sleep(0.5)
 
         except KeyboardInterrupt:
@@ -507,112 +697,170 @@ def cmd_mic(device: int | str | None = None, seconds: int = 8) -> None:
 def create_clean_mic_stream(device: int | str | None, audio_q: queue.Queue[bytes]):
     """
     Creates clean, artifact-free 16kHz mono int16 stream for Vosk.
-    1. Tries native 16000 Hz RawInputStream (cleanest, handled by ALSA/PipeWire C-library).
-    2. Falls back to 48000 Hz with exact 3:1 integer decimation (zero aliasing).
-    3. Falls back to hardware rate with 0.25s block buffer.
+    Auto-detects the hardware sample rate supported by the USB soundcard.
+    Uses C-level audioop.ratecv with continuous filter state to eliminate
+    phase distortion, robotic jitter, and block-boundary clicks.
     """
-    # 1. Native 16000 Hz RawInputStream
-    try:
-        def raw_cb(indata, frames, time_info, status):
-            audio_q.put(bytes(indata))
-
-        stream = sd.RawInputStream(
-            samplerate=16000,
-            blocksize=4000,
-            device=device,
-            dtype="int16",
-            channels=1,
-            callback=raw_cb,
-        )
-        stream.start()
-        stream.stop()
-        return stream, "16000 Hz (Native/C-Resampled)"
-    except Exception:
-        pass
-
-    # 2. 48000 Hz with 3:1 decimation
-    try:
-        def cb_48k(indata, frames, time_info, status):
-            mono = indata[:, 0] if indata.ndim > 1 else indata
-            decimated = mono[::3]
-            audio_q.put(decimated.astype(np.int16).tobytes())
-
-        stream = sd.InputStream(
-            samplerate=48000,
-            blocksize=6000,
-            device=device,
-            dtype="int16",
-            channels=1,
-            callback=cb_48k,
-        )
-        stream.start()
-        stream.stop()
-        return stream, "48000 Hz (3:1 Decimation to 16kHz)"
-    except Exception:
-        pass
-
-    # 3. Fallback to hardware rate with large blocks
     dev_info = sd.query_devices(device, "input")
     hw_rate = int(dev_info.get("default_samplerate", 44100))
-    def cb_fallback(indata, frames, time_info, status):
+
+    # Probe which rate the hardware accepts without throwing ALSA errors
+    candidates = [hw_rate, 48000, 44100, 16000]
+    candidates = list(dict.fromkeys(candidates))
+
+    supported_rate = hw_rate
+    for cand in candidates:
+        try:
+            sd.check_input_settings(device=device, channels=1, dtype="int16", samplerate=cand)
+            supported_rate = cand
+            break
+        except Exception:
+            continue
+
+    # Case 1: Native 16000 Hz if hardware supports it directly
+    if supported_rate == 16000:
+        try:
+            def raw_cb(indata, frames, time_info, status):
+                audio_q.put(bytes(indata))
+
+            stream = sd.RawInputStream(
+                samplerate=16000,
+                blocksize=4000,
+                device=device,
+                dtype="int16",
+                channels=1,
+                callback=raw_cb,
+            )
+            return stream, "16000 Hz (Native ALSA)"
+        except Exception:
+            pass
+
+    # Case 2: 48000 Hz with 3:1 integer decimation (anti-aliased boxcar)
+    if supported_rate == 48000:
+        try:
+            def cb_48k(indata, frames, time_info, status):
+                mono = indata[:, 0] if indata.ndim > 1 else indata
+                dec = (mono[0::3].astype(np.int32) + mono[1::3].astype(np.int32) + mono[2::3].astype(np.int32)) // 3
+                audio_q.put(dec.astype(np.int16).tobytes())
+
+            stream = sd.InputStream(
+                samplerate=48000,
+                blocksize=4800,  # 100ms blocks
+                device=device,
+                dtype="int16",
+                channels=1,
+                callback=cb_48k,
+            )
+            return stream, "48000 Hz (Clean 3:1 Decimation to 16kHz)"
+        except Exception:
+            pass
+
+    # Case 3: 44100 Hz (or arbitrary rate) using Python's built-in C audioop.ratecv
+    if audioop is not None:
+        state = None
+
+        def cb_audioop(indata, frames, time_info, status):
+            nonlocal state
+            raw_bytes = indata.tobytes() if isinstance(indata, np.ndarray) else bytes(indata)
+            resampled, state = audioop.ratecv(raw_bytes, 2, 1, supported_rate, 16000, state)
+            audio_q.put(resampled)
+
+        blocksize = int(supported_rate * 0.1)  # 100ms buffer
+        stream = sd.InputStream(
+            samplerate=supported_rate,
+            blocksize=blocksize,
+            device=device,
+            dtype="int16",
+            channels=1,
+            callback=cb_audioop,
+        )
+        return stream, f"{supported_rate} Hz (Continuous C-Resample to 16kHz)"
+
+    # Case 4: Pure numpy phase-accumulating fallback
+    phase_acc = 0.0
+    step = supported_rate / 16000.0
+
+    def cb_phase(indata, frames, time_info, status):
+        nonlocal phase_acc
         mono = indata[:, 0] if indata.ndim > 1 else indata
-        dur = len(mono) / hw_rate
-        out_len = int(dur * 16000)
-        if out_len > 0:
-            orig_idx = np.linspace(0, len(mono) - 1, num=out_len)
-            resampled = np.interp(orig_idx, np.arange(len(mono)), mono)
+        in_len = len(mono)
+        indices = []
+        curr = phase_acc
+        while curr < in_len:
+            indices.append(curr)
+            curr += step
+        phase_acc = curr - in_len
+
+        if indices:
+            idx_arr = np.array(indices)
+            resampled = np.interp(idx_arr, np.arange(in_len), mono)
             audio_q.put(resampled.astype(np.int16).tobytes())
 
+    blocksize = int(supported_rate * 0.1)
     stream = sd.InputStream(
-        samplerate=hw_rate,
-        blocksize=hw_rate // 4,
+        samplerate=supported_rate,
+        blocksize=blocksize,
         device=device,
         dtype="int16",
         channels=1,
-        callback=cb_fallback,
+        callback=cb_phase,
     )
-    return stream, f"{hw_rate} Hz (Interpolated)"
+    return stream, f"{supported_rate} Hz (Continuous Phase-Preserving to 16kHz)"
 
 
 def cmd_test_mic(device: int | str | None = None, seconds: int = 5, sink: str | None = None) -> None:
-    """Records audio from the microphone and immediately plays it back through the speaker."""
+    """Records audio from the microphone at its native rate and plays it back through the speaker."""
     chosen_dev = parse_device(device)
     dev_info = sd.query_devices(chosen_dev, "input")
     dev_name = dev_info.get("name", "Default")
     out_wav = "/tmp/aira_mic_playback_test.wav"
 
+    # Auto-detect supported hardware rate
+    hw_rate = int(dev_info.get("default_samplerate", 44100))
+    candidates = [hw_rate, 48000, 44100, 16000]
+    candidates = list(dict.fromkeys(candidates))
+
+    rec_rate = hw_rate
+    for cand in candidates:
+        try:
+            sd.check_input_settings(device=chosen_dev, channels=1, dtype="int16", samplerate=cand)
+            rec_rate = cand
+            break
+        except Exception:
+            continue
+
     print("=" * 60)
     print("🎤 MICROPHONE LOOPBACK TEST (Hear What The Pi Hears)")
     print(f"   Input device: [{chosen_dev}] {dev_name}")
-    print(f"   Recording duration: {seconds} seconds")
+    print(f"   Hardware Rate: {rec_rate} Hz | Duration: {seconds} seconds")
     print("=" * 60)
     print("\n👉 Speak into your AUX microphone now! Recording starts in 1 second...")
     time.sleep(1)
     print("🔴 RECORDING...")
 
-    rate = 16000
     try:
-        rec_data = sd.rec(int(seconds * rate), samplerate=rate, channels=1, dtype="int16", device=chosen_dev)
+        rec_data = sd.rec(int(seconds * rec_rate), samplerate=rec_rate, channels=1, dtype="int16", device=chosen_dev)
         for i in range(seconds):
             time.sleep(1)
             sys.stdout.write(f"\r   Recording... {i + 1}/{seconds}s [{'█' * (i + 1) * 6}{'░' * (seconds - i - 1) * 6}]")
             sys.stdout.flush()
         sd.wait()
-    except Exception:
-        rate = int(dev_info.get("default_samplerate", 44100))
-        rec_data = sd.rec(int(seconds * rate), samplerate=rate, channels=1, dtype="int16", device=chosen_dev)
-        sd.wait()
+        print("\n⏹️  Recording finished!")
+    except Exception as err:
+        print(f"\n❌ Recording failed: {err}", file=sys.stderr)
+        return
 
     with wave.open(out_wav, "wb") as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)
-        wf.setframerate(rate)
+        wf.setframerate(rec_rate)
         wf.writeframes(rec_data.tobytes())
 
-    print("\n\n✅ Recording finished! Saved to", out_wav)
-    print("🔊 PLAYING BACK through Stone 620 speaker now...")
-    play_audio(out_wav, sink=sink)
-    print("✅ Playback finished. If your voice sounded clear, mic input is good!")
+    print("\n🔊 Playing back your recording through Stone 620 speaker...")
+    pad_test_wav = "/tmp/aira_mic_playback_padded.wav"
+    pad_wav(out_wav, pad_test_wav, lead_sec=0.6, tail_sec=0.4)
+    play_audio(pad_test_wav, sink=sink)
+    print("✅ Playback finished! Did your voice sound clear?")
 
 
 def cmd_listen(
@@ -632,6 +880,7 @@ def cmd_listen(
         print("Please download it as specified in AIRA_RaspberryPi_Setup_Context.md", file=sys.stderr)
         return
 
+    ensure_alsa_mic_volume()
     chosen_dev = parse_device(device)
     dev_info = sd.query_devices(chosen_dev, "input")
     print(f"⏳ Loading Vosk speech recognition model from {model_path}...")
@@ -641,34 +890,68 @@ def cmd_listen(
     stream, mode_desc = create_clean_mic_stream(chosen_dev, audio_q)
 
     print("\n" + "=" * 55)
-    print("🟢 AIRA is listening! Say: 'Hey Aira' or 'Aira'...")
+    print("🟢 AIRA is listening! Say: 'Hey Aira' or 'Aira', 'नमस्ते', 'सुनो'...")
     print(f"   Audio Stream: {mode_desc} on [{chosen_dev}] {dev_info.get('name')}")
     print(f"   Reply configured: \"{reply}\" ({voice})")
+    print("   👉 Tip: Speak into mic, or press [Enter] to trigger manually!")
     print("=" * 55 + "\n")
 
     while True:
         try:
             recognizer = KaldiRecognizer(model, TARGET_RATE)
             stream.start()
+            wake_detected = False
+            last_display_time = 0.0
+            last_heard = ""
+
             try:
-                while True:
-                    data = audio_q.get()
+                while not wake_detected:
+                    if check_manual_wake_trigger():
+                        print(f"\n🎯 [Manual Wake Triggered via Enter key!]")
+                        wake_detected = True
+                        break
+
+                    try:
+                        data = audio_q.get(timeout=0.08)
+                    except queue.Empty:
+                        continue
+
+                    if audioop:
+                        rms = audioop.rms(data, 2)
+                    else:
+                        samples = np.frombuffer(data, dtype=np.int16).astype(float)
+                        rms = int(np.sqrt(np.mean(samples**2))) if len(samples) > 0 else 0
+
+                    norm_db = 20 * math.log10(max(1, rms) / 32768.0)
+                    bars = max(0, min(8, int((norm_db + 50) / 5.0)))
+                    meter = "█" * bars + "░" * (8 - bars)
+
                     if recognizer.AcceptWaveform(data):
                         res = json.loads(recognizer.Result())
-                        heard_text = res.get("text", "")
+                        heard_text = res.get("text", "").strip()
                         if heard_text:
-                            print(f"\n[Heard full]: {heard_text}")
+                            last_heard = heard_text
                             if heard_wake_word(heard_text):
-                                print(f"🎯 WAKE-WORD DETECTED! Responding...")
+                                print(f"\n🎯 WAKE-WORD DETECTED in full: '{heard_text}'! Responding...")
+                                wake_detected = True
                                 break
                     else:
-                        partial = json.loads(recognizer.PartialResult()).get("partial", "")
+                        partial = json.loads(recognizer.PartialResult()).get("partial", "").strip()
                         if partial:
-                            sys.stdout.write(f"\r[Listening...]: {partial:<40}")
-                            sys.stdout.flush()
+                            last_heard = partial
                             if heard_wake_word(partial):
-                                print(f"\n🎯 WAKE-WORD DETECTED in partial! Responding...")
+                                print(f"\n🎯 WAKE-WORD DETECTED in partial: '{partial}'! Responding...")
+                                wake_detected = True
                                 break
+
+                    now = time.time()
+                    if now - last_display_time > 0.08:
+                        last_display_time = now
+                        disp = f"Hearing: '{last_heard}'" if last_heard else "Listening... (Say 'Hey Aira' or 'नमस्ते')"
+                        if len(disp) > 42:
+                            disp = disp[:39] + "..."
+                        sys.stdout.write(f"\r👂 [{meter} {norm_db:3.0f}dB] {disp:<45}")
+                        sys.stdout.flush()
             finally:
                 stream.stop()
 
@@ -677,7 +960,10 @@ def cmd_listen(
 
             # Flush queue and brief pause before reopening mic
             while not audio_q.empty():
-                audio_q.get_nowait()
+                try:
+                    audio_q.get_nowait()
+                except queue.Empty:
+                    break
             time.sleep(0.5)
             print("\n🟢 Listening again for 'Hey Aira'...")
 
@@ -713,13 +999,16 @@ def main() -> None:
     lis_cmd.add_argument("--voice", default=DEFAULT_VOICE, help="Voice profile (swara, neerja, priyamvada)")
     lis_cmd.add_argument("--sink", help="PulseAudio/PipeWire sink name")
 
-    chat_cmd = subparsers.add_parser("chat", help="Run conversational voice companion with 'Hey Aira' wake word")
+    chat_cmd = subparsers.add_parser("chat", help="Run conversational voice companion with Webapp Sync & Alarms")
     chat_cmd.add_argument("--device", help="Input device index or name (e.g. 'USB')")
     chat_cmd.add_argument("--model", default=DEFAULT_MODEL, help="Path to Vosk speech model")
     chat_cmd.add_argument("--voice", default=DEFAULT_VOICE, help="Voice profile (swara, neerja, priyamvada)")
     chat_cmd.add_argument("--sink", help="PulseAudio/PipeWire sink name")
     chat_cmd.add_argument("--gemini-key", default=os.environ.get("GEMINI_API_KEY"), help="Google Gemini API key")
     chat_cmd.add_argument("--openai-key", default=os.environ.get("OPENAI_API_KEY"), help="OpenAI API key")
+    chat_cmd.add_argument("--api-url", default=os.environ.get("AIRA_API_URL") or "http://localhost:8000", help="AIRA FastAPI backend URL")
+    chat_cmd.add_argument("--access-code", default=os.environ.get("AIRA_ACCESS_CODE") or "AIRA-7K3Q", help="Elder access code")
+    chat_cmd.add_argument("--pin", default=os.environ.get("AIRA_PIN") or "1234", help="Elder 4-digit PIN")
     chat_cmd.add_argument("--text-mode", action="store_true", help="Run interactive terminal text chat")
 
     args = parser.parse_args()
@@ -741,14 +1030,27 @@ def main() -> None:
             voice=args.voice,
         )
     elif args.command == "chat":
-        cmd_chat_loop(
-            device=args.device,
-            sink=args.sink,
-            model_path=args.model,
-            voice=args.voice,
-            gemini_key=args.gemini_key,
-            openai_key=args.openai_key,
-        )
+        if aira_chat_run_loop:
+            aira_chat_run_loop(
+                device_hint=args.device,
+                sink=args.sink,
+                model_path=args.model,
+                voice=args.voice,
+                gemini_key=args.gemini_key,
+                openai_key=args.openai_key,
+                api_url=getattr(args, "api_url", None),
+                access_code=getattr(args, "access_code", None),
+                pin=getattr(args, "pin", None),
+            )
+        else:
+            cmd_chat_loop(
+                device=args.device,
+                sink=args.sink,
+                model_path=args.model,
+                voice=args.voice,
+                gemini_key=args.gemini_key,
+                openai_key=args.openai_key,
+            )
     else:
         print("\n" + "=" * 62)
         print("🌸 AIRA Audio Test & Diagnostics Tool")

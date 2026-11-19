@@ -269,6 +269,10 @@ export default function ElderSimpleViewPage() {
 
   React.useEffect(() => {
     fetchElderData();
+    const pollInterval = setInterval(() => {
+      fetchElderData();
+    }, 3000);
+    return () => clearInterval(pollInterval);
   }, [fetchElderData]);
 
   // Clean up sirens when navigating away

@@ -123,6 +123,11 @@ export default function StatusDashboardPage() {
     Promise.all([fetchDayData(), fetchWeekData(), fetchMonthData()]).finally(() => {
       setLoading(false);
     });
+    const pollInterval = setInterval(() => {
+      fetchDayData();
+      fetchWeekData();
+    }, 4000);
+    return () => clearInterval(pollInterval);
   }, [selectedElder, fetchDayData, fetchWeekData, fetchMonthData]);
 
   const changeMonth = (delta: number) => {

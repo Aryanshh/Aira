@@ -17,9 +17,11 @@ from __future__ import annotations
 import argparse
 import asyncio
 import os
+import re
 import shutil
 import subprocess
 import sys
+import time
 import wave
 
 VOICE_PROFILES = {
@@ -228,6 +230,18 @@ def synth_espeak(text: str, voice_code: str, out_wav: str) -> bool:
         return False
 
 
+def clean_text_for_tts(text: str) -> str:
+    """Cleans text for natural audio synthesis without markdown or emojis."""
+    if not text:
+        return ""
+    text = re.sub(r"[*_#`~>\[\]\(\)]", " ", text)
+    text = re.sub(r"[\U00010000-\U0010ffff]", "", text)
+    text = re.sub(r"[\u2600-\u27BF]", "", text)
+    text = re.sub(r"^\s*[-•]\s*", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
 def speak(
     text: str,
     voice_key: str = "swara",
@@ -236,6 +250,7 @@ def speak(
     tail_sec: float = 0.4,
 ) -> bool:
     """Synthesizes text and plays it through the Bluetooth speaker."""
+    text = clean_text_for_tts(text)
     profile = VOICE_PROFILES.get(voice_key.lower())
     if not profile:
         print(f"Unknown voice profile '{voice_key}'. Available: {list(VOICE_PROFILES.keys())}", file=sys.stderr)
