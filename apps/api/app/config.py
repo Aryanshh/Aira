@@ -5,8 +5,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     APP_ENV: str = "development"
 
-    # Database
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/aira"
+    # Database (defaults to local SQLite; override with DATABASE_URL for Postgres)
+    DATABASE_URL: str = "sqlite+aiosqlite:///./aira.db"
 
     # Security
     JWT_SECRET: str = "aira_development_jwt_secret_key_minimum_32_chars_long_1234567890"

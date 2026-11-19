@@ -3,15 +3,19 @@ services:
     name: aira-api
     runtime: python
     rootDir: apps/api
-    buildCommand: "pip install --upgrade pip && pip install -e ."
+    buildCommand: "pip install -r requirements.txt"
     startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.2
       - key: APP_ENV
         value: production
       - key: AUTO_SEED_ON_STARTUP
         value: "true"
       - key: WEB_ORIGIN
         value: "*"
+      - key: DATABASE_URL
+        value: "sqlite+aiosqlite:///./aira.db"
       - key: JWT_SECRET
         generateValue: true
       - key: APP_ENCRYPTION_KEY
